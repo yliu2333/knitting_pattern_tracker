@@ -53,9 +53,17 @@ ir/         canonical IR records (PatternIr → SectionIr → StepIr → RowIr �
 ## Local dev
 - `cd backend && docker compose up -d` (Postgres+pgvector; `db/init` creates app role `kpt_app`). Flyway migrates as owner `kpt_owner`; the app connects as `kpt_app`.
 - `./gradlew test` (Testcontainers; needs Docker).
-- Env: `JWT_SECRET` (≥ 32 bytes, required), `DB_URL`, `DB_APP_USER/PASSWORD`, `DB_OWNER_USER/PASSWORD`.
+- Env: `JWT_SECRET` (≥ 32 bytes, required), `APPLE_CLIENT_IDS` (iOS bundle id(s); empty = Apple login off), `DB_URL`, `DB_APP_USER/PASSWORD`, `DB_OWNER_USER/PASSWORD`.
+
+## Auth
+- iOS: Sign in with Apple with `request.nonce = sha256(rawNonce)` → `POST /api/auth/apple {identityToken, nonce: rawNonce}` → `{userId, accessToken (1h), expiresIn, refreshToken (60d)}`
+- `POST /api/auth/refresh {refreshToken}` rotates (single use; reusing an old one revokes all of the user's tokens) · `POST /api/auth/logout {refreshToken}`
+- Apple token check: Apple JWKS signature, iss `https://appleid.apple.com`, aud ∈ `APPLE_CLIENT_IDS`, exp, nonce hash.
+- `refresh_token` table: app role has no grants; only SECURITY DEFINER functions (`refresh_token_issue/use/revoke`) touch it. Only hashes are stored.
+- TODO before App Store: on account deletion also revoke the Apple token via Apple's REST API (needs a Sign in with Apple private key).
 
 ## API (all require `Authorization: Bearer <our JWT>`, subject = app_user id)
+- `GET /api/me` · `PATCH /api/me {uiLang}` · `DELETE /api/me` (deletes account + all data; App Store requirement)
 - `POST /api/patterns` (IR JSON; same IR again → 200 existing id) · `GET /api/patterns`
 - `POST /api/projects {patternId}` · `GET /api/projects` · `GET /api/projects/{id}` → TrackerView (sections, steps, done/finished, start/end sts, currentStepId, percent, lastAction)
 - `GET /api/projects/{id}/steps/{stepId}/rounds/{round}?lang=zh|en` → literal instruction text for one round (0-based)
@@ -117,7 +125,7 @@ Root cause of that class of bug: isolation relied on every query *remembering* t
    - Parity test (private): stitch counts per round, counts between markers, and short-row literal counts all equal the prototype's
 3. ✅ Progress API: mark row/round done, finish step, undo, rewind-to-step; A/B isolation tests
 4. SwiftUI tracker reading the API (port prototype UX: current step, n/N, segments, next step, undo)
-5. Sign in with Apple + JWT
+5. Sign in with Apple + JWT — ✅ backend; iOS side comes with milestone 4
 6. TextPatternParser: LLM prompt + glossary + JSON schema validation + retry; test on real EN/JP/CN patterns
 7. GaugeAdapter: rescale counts with constraints (ribbing parity, repeat multiples, even decrease spacing, short-row depth by row gauge)
 8. Later: JP knit symbol charts → crochet charts
