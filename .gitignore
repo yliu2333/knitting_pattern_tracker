@@ -1,3 +1,8 @@
 # Purchased pattern content: keep out of the public repo
 reference/
-fixtures/private/
+fixtures/private
+backend/build/
+backend/.gradle/
+.idea/
+*.iml
+.DS_Store

@@ -4,7 +4,7 @@
 Users upload a knitting pattern they **purchased** (any language: English, Japanese, Chinese, …) → app turns it into a **row-by-row progress tracker in the user's chosen language (default 中文)** with explicit stitch counts per segment, and can **recalculate the pattern for the user's own gauge**.
 
 Target users: Chinese knitters who buy original-language patterns but knit from Chinese and can't read symbol charts.
-Prototype: `reference/paofu-tee-tracker.html` — the 泡芙 Tee single-file HTML tracker (hard-coded steps, checkbox progress, undo/rewind, technique links, yarn-weight log). It used the claude.ai artifact `window.claude` db API for sync; replace that with our backend. Port the UX, not the storage code.
+Prototype: `fixtures/private/reference/paofu-tee-tracker.html` (private repo, see Fixtures) — the 泡芙 Tee single-file HTML tracker (hard-coded steps, checkbox progress, undo/rewind, technique links, yarn-weight log). It used the claude.ai artifact `window.claude` db API for sync; replace that with our backend. Port the UX, not the storage code.
 
 ## Hard rules
 - **Copyright**: uploaded patterns are private to the uploader. No sharing, publishing, or exporting translated patterns to other users. Never ship third-party patterns in the app.
@@ -29,7 +29,11 @@ source (any lang) --[LLM parse]--> Canonical IR (language-neutral) --[determinis
 - iOS: SwiftUI
 - Auth: Sign in with Apple → backend-issued JWT
 - LLM: free tier (Gemini Flash first; Groq as fallback), behind an interface
-- Repo layout: `/backend`, `/ios`, `/fixtures` (sample parsed patterns, incl. 泡芙 Tee), `/reference` (prototype HTML)
+- Repo layout: `/backend`, `/ios`, `/fixtures` (public sample IR, written by us)
+
+## Fixtures & copyright (this repo is public)
+- Purchased patterns (泡芙 Tee IR, prototype HTML) live ONLY in the private repo `yliu2333/knitting-private-fixtures`, cloned or symlinked to `fixtures/private/` (git-ignored). Never commit pattern content here, not even temporarily: git history is permanent.
+- Tests discover `fixtures/*.ir.json` + `fixtures/private/patterns/*.ir.json`; private ones are skipped when absent.
 
 ## Backend layering (same as video-platform: api / service / dao)
 ```
@@ -39,9 +43,14 @@ service/    business logic
   render/   InstructionRenderer (IR + lang → text)
   gauge/    GaugeAdapter (pure functions, heavily unit-tested)
   llm/      LlmClient interface + GeminiClient, GroqClient
-security/   CurrentUser, JWT filter, RLS session setter
-dao/        repositories / entities
+security/   CurrentUser, JWT filter, UserScope (sets app.user_id per transaction)
+dao/        JdbcClient repositories
+ir/         canonical IR records (PatternIr → SectionIr → StepIr → RowIr → SegmentIr) + IrValidator
 ```
+
+## Local dev
+- `cd backend && docker compose up -d` (Postgres+pgvector; `db/init` creates app role `kpt_app`). Flyway migrates as owner `kpt_owner`; the app connects as `kpt_app`.
+- `./gradlew test` (Testcontainers; needs Docker).
 
 ## Extension points (design now, implement later)
 ```java
@@ -76,9 +85,14 @@ Root cause of that class of bug: isolation relied on every query *remembering* t
 - `app_user(id, apple_sub, ui_lang default 'zh', created_at)`
 - `pattern(id, user_id, title, craft, source_type, source_lang, file_hash, parser_version, original_gauge jsonb, status)`
 - `section(id, user_id, pattern_id, ord, name_key, name_src)`
-- `step(id, user_id, section_id, ord, kind[ROWS|REPEAT|CHECKPOINT], unit[ROW|ROUND], title_key, note_src, note_i18n jsonb, start_sts, end_sts, total, group_count, rows_per_group, structure jsonb)`
-  - `total` null = "knit until X cm" (open-ended)
-- `segment(id, user_id, step_id, ord, code, count, marker_after, raw)` — canonical per-segment action
+- `step(id, user_id, section_id, ord, kind[ROWS|REPEAT|CHECKPOINT], unit[ROW|ROUND], title_key, title_src, note_src, note_i18n jsonb, needle_mm, target jsonb, start_sts, end_sts, total, group_count, rows_per_group, structure jsonb)`
+  - `total` null = "knit until X cm" (open-ended, `target` e.g. `{"lengthCm":6,"from":"CAST_ON"}`)
+  - `start_sts` / `end_sts` are computed by Java, never by the LLM
+- `step_row(id, user_id, step_id, ord, side[RS|WS], name_key, name_src)` — row templates; round i of a step uses row `i % rowCount`
+- `segment(id, user_id, step_row_id, parent_id, ord, code, count, until[MARKER|BOR|GAP|END], stop_before, marker, attrs jsonb, raw)` — canonical per-segment action
+  - "knit to 1 before marker" = `{K, until:MARKER, stopBefore:1}`, `count` null; Java resolves the literal count
+  - `REPEAT` segments own children via `parent_id` (`count` times, or `until`)
+  - markers are segments (`PM`/`SM`/`RM` with optional `marker` name), not a flag
 - `technique_i18n(code, lang, name, short_desc, video_url)` — global, not user-owned
 - `project(id, user_id, pattern_id, user_gauge jsonb, target_size jsonb, adapted jsonb)` — one pattern can have multiple projects
 - `progress(user_id, project_id, step_id, done, finished, note)`
@@ -87,7 +101,7 @@ Root cause of that class of bug: isolation relied on every query *remembering* t
 - `embedding(id, user_id, pattern_id, chunk_ref, vector)` — later, only if an in-app assistant needs retrieval
 
 ## Milestones
-1. Schema + migrations **with RLS from day one**; hand-write 泡芙 Tee as canonical-IR fixture JSON and load it
+1. ✅ Schema + migrations **with RLS from day one**; hand-write 泡芙 Tee as canonical-IR fixture JSON and load it
 2. InstructionRenderer (zh + en) over the fixture; output must match the prototype's per-segment text
 3. Progress API: mark row/round done, finish step, undo, rewind-to-step; A/B isolation tests
 4. SwiftUI tracker reading the API (port prototype UX: current step, n/N, segments, next step, undo)

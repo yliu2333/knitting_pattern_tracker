@@ -1,0 +1,11 @@
+spring:
+  datasource:            # app role: subject to RLS
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/knit}
+    username: ${DB_APP_USER:kpt_app}
+    password: ${DB_APP_PASSWORD:kpt_app}
+  flyway:                # schema owner: runs migrations only
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/knit}
+    user: ${DB_OWNER_USER:kpt_owner}
+    password: ${DB_OWNER_PASSWORD:kpt_owner}
+    placeholders:
+      appRole: ${DB_APP_USER:kpt_app}
