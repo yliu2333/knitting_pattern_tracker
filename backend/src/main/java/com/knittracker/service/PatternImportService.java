@@ -10,11 +10,13 @@ import com.knittracker.ir.SectionIr;
 import com.knittracker.ir.SegmentIr;
 import com.knittracker.ir.StepIr;
 import com.knittracker.security.UserScope;
+import com.knittracker.service.count.PatternPlan;
+import com.knittracker.service.count.StitchSimulator;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
-/** Stores a validated IR pattern for one user. Used by fixtures now and by the LLM parser later. */
+/** Validates and simulates an IR pattern, then stores it (with computed stitch counts) for one user. Used by fixtures now and by the LLM parser later. */
 @Service
 public class PatternImportService {
 
@@ -31,6 +33,12 @@ public class PatternImportService {
     public UUID importPattern(UUID userId, PatternIr ir, String fileHash, String parserVersion) {
         List<String> errors = IrValidator.validate(ir);
         if (!errors.isEmpty()) throw new InvalidIrException(errors);
+        PatternPlan plan;
+        try {
+            plan = StitchSimulator.simulate(ir);
+        } catch (StitchSimulator.SimulationException e) {
+            throw new InvalidIrException(List.of(e.getMessage()));
+        }
         String gauge = toJson(ir.gauge());
         return userScope.call(userId, () -> {
             UUID patternId = dao.insertPattern(userId, ir, fileHash, parserVersion, gauge);
@@ -39,7 +47,8 @@ public class PatternImportService {
                 UUID sectionId = dao.insertSection(userId, patternId, s, sec.nameKey(), sec.nameSrc());
                 for (int t = 0; t < sec.steps().size(); t++) {
                     StepIr step = sec.steps().get(t);
-                    UUID stepId = dao.insertStep(userId, sectionId, t, step);
+                    PatternPlan.StepPlan sp = plan.sections().get(s).get(t);
+                    UUID stepId = dao.insertStep(userId, sectionId, t, step, sp.startSts(), sp.endSts());
                     for (int r = 0; r < step.rows().size(); r++) {
                         RowIr row = step.rows().get(r);
                         UUID rowId = dao.insertRow(userId, stepId, r, row);

@@ -34,13 +34,15 @@ source (any lang) --[LLM parse]--> Canonical IR (language-neutral) --[determinis
 ## Fixtures & copyright (this repo is public)
 - Purchased patterns (泡芙 Tee IR, prototype HTML) live ONLY in the private repo `yliu2333/knitting-private-fixtures`, cloned or symlinked to `fixtures/private/` (git-ignored). Never commit pattern content here, not even temporarily: git history is permanent.
 - Tests discover `fixtures/*.ir.json` + `fixtures/private/patterns/*.ir.json`; private ones are skipped when absent.
+- IR simulation semantics: a row/round starting at BOR slips it implicitly; `K until END` crossing markers is split into literal pieces (`k28, sm, k9…`); inside `REPEAT until END` markers are slipped silently; `PICKUP_HELD` / `RESUME_MAIN` switch the active piece.
 
 ## Backend layering (same as video-platform: api / service / dao)
 ```
 api/        REST controllers, DTOs
 service/    business logic
   parse/    PatternParser implementations
-  render/   InstructionRenderer (IR + lang → text)
+  count/    StitchSimulator: knits the IR stitch by stitch → literal counts per segment, start/end sts (all stitch math)
+  render/   InstructionRenderer (resolved segments + technique_i18n templates → text)
   gauge/    GaugeAdapter (pure functions, heavily unit-tested)
   llm/      LlmClient interface + GeminiClient, GroqClient
 security/   CurrentUser, JWT filter, UserScope (sets app.user_id per transaction)
@@ -93,7 +95,7 @@ Root cause of that class of bug: isolation relied on every query *remembering* t
   - "knit to 1 before marker" = `{K, until:MARKER, stopBefore:1}`, `count` null; Java resolves the literal count
   - `REPEAT` segments own children via `parent_id` (`count` times, or `until`)
   - markers are segments (`PM`/`SM`/`RM` with optional `marker` name), not a flag
-- `technique_i18n(code, lang, name, short_desc, video_url)` — global, not user-owned
+- `technique_i18n(code, lang, name, template, short_desc, video_url)` — global, not user-owned; `template` drives rendering (`下针 {n}` / `k{n}`)
 - `project(id, user_id, pattern_id, user_gauge jsonb, target_size jsonb, adapted jsonb)` — one pattern can have multiple projects
 - `progress(user_id, project_id, step_id, done, finished, note)`
 - `progress_event(id, user_id, project_id, payload jsonb, created_at)` — append-only history for undo / rewind (拆线)
@@ -102,7 +104,8 @@ Root cause of that class of bug: isolation relied on every query *remembering* t
 
 ## Milestones
 1. ✅ Schema + migrations **with RLS from day one**; hand-write 泡芙 Tee as canonical-IR fixture JSON and load it
-2. InstructionRenderer (zh + en) over the fixture; output must match the prototype's per-segment text
+2. ✅ InstructionRenderer (zh + en) over the fixture; output must match the prototype's per-segment text
+   - Parity test (private): stitch counts per round, counts between markers, and short-row literal counts all equal the prototype's
 3. Progress API: mark row/round done, finish step, undo, rewind-to-step; A/B isolation tests
 4. SwiftUI tracker reading the API (port prototype UX: current step, n/N, segments, next step, undo)
 5. Sign in with Apple + JWT

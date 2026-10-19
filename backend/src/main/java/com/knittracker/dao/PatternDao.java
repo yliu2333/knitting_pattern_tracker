@@ -38,17 +38,18 @@ public class PatternDao {
                 .query(UUID.class).single();
     }
 
-    public UUID insertStep(UUID userId, UUID sectionId, int ord, StepIr s) {
+    public UUID insertStep(UUID userId, UUID sectionId, int ord, StepIr s, int startSts, int endSts) {
         return jdbc.sql("""
                 INSERT INTO step (user_id, section_id, ord, kind, unit, title_key, title_src, note_src, needle_mm,
-                                  target, total, group_count, rows_per_group, structure)
+                                  target, start_sts, end_sts, total, group_count, rows_per_group, structure)
                 VALUES (:user, :section, :ord, :kind, :unit, :titleKey, :titleSrc, :note, :needle,
-                        CAST(:target AS jsonb), :total, :groups, :perGroup, CAST(:structure AS jsonb))
+                        CAST(:target AS jsonb), :start, :end, :total, :groups, :perGroup, CAST(:structure AS jsonb))
                 RETURNING id""")
                 .param("user", userId).param("section", sectionId).param("ord", ord)
                 .param("kind", s.kind().name()).param("unit", s.unit() == null ? null : s.unit().name())
                 .param("titleKey", s.titleKey()).param("titleSrc", s.titleSrc()).param("note", s.noteSrc())
-                .param("needle", s.needleMm()).param("target", json(s.target())).param("total", s.total())
+                .param("needle", s.needleMm()).param("target", json(s.target()))
+                .param("start", startSts).param("end", endSts).param("total", s.total())
                 .param("groups", s.groupCount()).param("perGroup", s.rowsPerGroup())
                 .param("structure", json(s.structure()))
                 .query(UUID.class).single();
