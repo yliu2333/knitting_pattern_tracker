@@ -17,10 +17,17 @@ public class UserScope {
 
     private final TransactionTemplate tx;
     private final JdbcClient jdbc;
+    private final CurrentUser currentUser;
 
-    public UserScope(TransactionTemplate tx, JdbcClient jdbc) {
+    public UserScope(TransactionTemplate tx, JdbcClient jdbc, CurrentUser currentUser) {
         this.tx = tx;
         this.jdbc = jdbc;
+        this.currentUser = currentUser;
+    }
+
+    /** Runs as the authenticated caller. Request-handling services use this, never an explicit id. */
+    public <T> T asCurrentUser(Supplier<T> work) {
+        return call(currentUser.id(), work);
     }
 
     public <T> T call(UUID userId, Supplier<T> work) {

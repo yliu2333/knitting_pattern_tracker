@@ -53,6 +53,14 @@ ir/         canonical IR records (PatternIr → SectionIr → StepIr → RowIr �
 ## Local dev
 - `cd backend && docker compose up -d` (Postgres+pgvector; `db/init` creates app role `kpt_app`). Flyway migrates as owner `kpt_owner`; the app connects as `kpt_app`.
 - `./gradlew test` (Testcontainers; needs Docker).
+- Env: `JWT_SECRET` (≥ 32 bytes, required), `DB_URL`, `DB_APP_USER/PASSWORD`, `DB_OWNER_USER/PASSWORD`.
+
+## API (all require `Authorization: Bearer <our JWT>`, subject = app_user id)
+- `POST /api/patterns` (IR JSON; same IR again → 200 existing id) · `GET /api/patterns`
+- `POST /api/projects {patternId}` · `GET /api/projects` · `GET /api/projects/{id}` → TrackerView (sections, steps, done/finished, start/end sts, currentStepId, percent, lastAction)
+- `GET /api/projects/{id}/steps/{stepId}/rounds/{round}?lang=zh|en` → literal instruction text for one round (0-based)
+- `POST …/steps/{stepId}/advance | retreat | finish | rewind?round=n` · `PUT …/steps/{stepId}/note` · `POST /api/projects/{id}/undo`
+- Missing or another user's resource → 404 (indistinguishable). Invalid state → 409. Undo = restore `before` snapshot of the last non-undone `progress_event`; notes are not part of undo.
 
 ## Extension points (design now, implement later)
 ```java
@@ -77,6 +85,7 @@ Root cause of that class of bug: isolation relied on every query *remembering* t
 2. **Postgres Row-Level Security** on every user-owned table (`pattern, project, progress, progress_event, yarn_log, embedding, …`):
    `USING (user_id = current_setting('app.user_id')::uuid)`. A per-request interceptor runs `SET LOCAL app.user_id = ?` inside the transaction. App DB role is NOT table owner and has no `BYPASSRLS`. Forgetting a `WHERE` → returns nothing, not someone else's data.
 3. **Denormalize `user_id`** onto every user-owned row (incl. child tables like `progress`, `segment` of user patterns) so RLS is a simple column check, no joins.
+   FKs between user-owned tables are composite `(parent_id, user_id) → parent(id, user_id)`: FK checks bypass RLS, so a plain FK would let B attach rows to A's parent.
 4. **Vectors live in pgvector in the same DB**, same RLS policy. No separate vector store where a metadata filter is optional. Retrieval is also scoped by `project_id`/`pattern_id` so one user's projects don't bleed into each other.
 5. **LLM calls are stateless.** Each call gets only the context explicitly built for that request. No shared conversation buffer, no static/singleton state holding history. Any chat history is a table with `user_id` + RLS.
 6. **Cache keys include `user_id`**: parse cache = `(user_id, file_hash, parser_version)`. No cross-user reuse of parsed results in v1.
@@ -106,7 +115,7 @@ Root cause of that class of bug: isolation relied on every query *remembering* t
 1. ✅ Schema + migrations **with RLS from day one**; hand-write 泡芙 Tee as canonical-IR fixture JSON and load it
 2. ✅ InstructionRenderer (zh + en) over the fixture; output must match the prototype's per-segment text
    - Parity test (private): stitch counts per round, counts between markers, and short-row literal counts all equal the prototype's
-3. Progress API: mark row/round done, finish step, undo, rewind-to-step; A/B isolation tests
+3. ✅ Progress API: mark row/round done, finish step, undo, rewind-to-step; A/B isolation tests
 4. SwiftUI tracker reading the API (port prototype UX: current step, n/N, segments, next step, undo)
 5. Sign in with Apple + JWT
 6. TextPatternParser: LLM prompt + glossary + JSON schema validation + retry; test on real EN/JP/CN patterns

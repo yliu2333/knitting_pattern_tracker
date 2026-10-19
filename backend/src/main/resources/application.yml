@@ -9,3 +9,7 @@ spring:
     password: ${DB_OWNER_PASSWORD:kpt_owner}
     placeholders:
       appRole: ${DB_APP_USER:kpt_app}
+app:
+  jwt:
+    secret: ${JWT_SECRET}   # >= 32 bytes; no default on purpose
+    issuer: knit-tracker

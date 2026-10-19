@@ -34,5 +34,6 @@ public abstract class PostgresTestBase {
         r.add("spring.flyway.url", PG::getJdbcUrl);
         r.add("spring.flyway.user", PG::getUsername);
         r.add("spring.flyway.password", PG::getPassword);
+        r.add("app.jwt.secret", () -> "test-secret-test-secret-test-secret-0123456789");
     }
 }
