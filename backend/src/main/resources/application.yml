@@ -13,3 +13,10 @@ app:
   jwt:
     secret: ${JWT_SECRET}   # >= 32 bytes; no default on purpose
     issuer: knit-tracker
+    access-ttl: 1h
+    refresh-ttl: 60d
+  apple:
+    # iOS bundle id(s) allowed as the identity token audience, comma-separated. Empty = Apple login disabled.
+    client-ids: ${APPLE_CLIENT_IDS:}
+    jwks-uri: https://appleid.apple.com/auth/keys
+    issuer: https://appleid.apple.com

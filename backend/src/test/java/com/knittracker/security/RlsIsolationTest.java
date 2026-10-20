@@ -99,7 +99,13 @@ class RlsIsolationTest extends PostgresTestBase {
                 WHERE c.relkind = 'r'
                   AND EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attname = 'user_id')
                   AND NOT (c.relrowsecurity AND c.relforcerowsecurity)""").query(String.class).list();
-        assertThat(unprotected).isEmpty();
+        // refresh_token is looked up before the user is known: not FORCEd, but the app role has no access at all.
+        assertThat(unprotected).containsOnly("refresh_token");
+        assertThat(jdbc.sql("""
+                SELECT has_table_privilege('refresh_token', 'SELECT')
+                    OR has_table_privilege('refresh_token', 'INSERT')
+                    OR has_table_privilege('refresh_token', 'UPDATE')
+                    OR has_table_privilege('refresh_token', 'DELETE')""").query(Boolean.class).single()).isFalse();
         assertThat(jdbc.sql("SELECT relrowsecurity FROM pg_class WHERE relname = 'app_user'")
                 .query(Boolean.class).single()).isTrue();
     }

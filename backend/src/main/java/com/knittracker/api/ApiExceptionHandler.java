@@ -3,6 +3,7 @@ package com.knittracker.api;
 import com.knittracker.service.ConflictException;
 import com.knittracker.service.NotFoundException;
 import com.knittracker.service.PatternImportService.InvalidIrException;
+import com.knittracker.service.auth.AuthService.AuthFailedException;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,12 @@ public class ApiExceptionHandler {
     @ExceptionHandler(NotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     Map<String, String> notFound(NotFoundException e) {
+        return Map.of("error", e.getMessage());
+    }
+
+    @ExceptionHandler(AuthFailedException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    Map<String, String> authFailed(AuthFailedException e) {
         return Map.of("error", e.getMessage());
     }
 
