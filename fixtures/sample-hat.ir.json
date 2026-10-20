@@ -1,0 +1,115 @@
+{
+  "irVersion": 1,
+  "title": "Sample Beanie",
+  "craft": "KNIT",
+  "sourceType": "TEXT_PDF",
+  "sourceLang": "en",
+  "gauge": { "sts": 20, "rows": 28, "perCm": 10, "needleMm": 4.5 },
+  "sections": [
+    {
+      "nameSrc": "Brim",
+      "steps": [
+        {
+          "kind": "CHECKPOINT",
+          "titleSrc": "Cast on",
+          "needleMm": 4.0,
+          "rows": [
+            { "segments": [
+              { "code": "CO_LONGTAIL", "count": 96 },
+              { "code": "PM", "marker": "BOR" },
+              { "code": "JOIN_ROUND" }
+            ] }
+          ]
+        },
+        {
+          "kind": "ROWS",
+          "unit": "ROUND",
+          "titleSrc": "1x1 rib",
+          "needleMm": 4.0,
+          "total": 12,
+          "rows": [
+            { "segments": [
+              { "code": "REPEAT", "until": "END", "children": [
+                { "code": "K", "count": 1 },
+                { "code": "P", "count": 1 }
+              ] }
+            ] }
+          ]
+        }
+      ]
+    },
+    {
+      "nameSrc": "Body",
+      "steps": [
+        {
+          "kind": "ROWS",
+          "unit": "ROUND",
+          "titleSrc": "Stockinette",
+          "needleMm": 4.5,
+          "target": { "lengthCm": 15, "from": "CAST_ON" },
+          "rows": [
+            { "segments": [ { "code": "K", "until": "END" } ] }
+          ]
+        },
+        {
+          "kind": "ROWS",
+          "unit": "ROUND",
+          "titleSrc": "Marker set-up round",
+          "needleMm": 4.5,
+          "total": 1,
+          "rows": [
+            { "segments": [
+              { "code": "REPEAT", "count": 7, "children": [
+                { "code": "K", "count": 12 },
+                { "code": "PM" }
+              ] },
+              { "code": "K", "count": 12 }
+            ] }
+          ]
+        }
+      ]
+    },
+    {
+      "nameSrc": "Crown",
+      "steps": [
+        {
+          "kind": "REPEAT",
+          "unit": "ROUND",
+          "titleSrc": "Crown decreases",
+          "needleMm": 4.5,
+          "total": 12,
+          "groupCount": 6,
+          "rowsPerGroup": 2,
+          "rows": [
+            { "nameSrc": "Decrease round", "segments": [
+              { "code": "REPEAT", "until": "END", "children": [
+                { "code": "K", "until": "MARKER", "stopBefore": 2 },
+                { "code": "K2TOG" },
+                { "code": "SM" }
+              ] }
+            ] },
+            { "nameSrc": "Plain round", "segments": [ { "code": "K", "until": "END" } ] }
+          ]
+        },
+        {
+          "kind": "ROWS",
+          "unit": "ROUND",
+          "titleSrc": "Final decrease",
+          "needleMm": 4.5,
+          "total": 1,
+          "rows": [
+            { "segments": [
+              { "code": "REPEAT", "until": "END", "children": [ { "code": "K2TOG" } ] }
+            ] }
+          ]
+        },
+        {
+          "kind": "CHECKPOINT",
+          "titleSrc": "Finish",
+          "noteSrc": "Cut yarn leaving a 20 cm tail, thread through remaining stitches and pull tight.",
+          "rows": [ { "segments": [ { "code": "CUT_DRAW_THROUGH" } ] } ]
+        }
+      ]
+    }
+  ]
+}
