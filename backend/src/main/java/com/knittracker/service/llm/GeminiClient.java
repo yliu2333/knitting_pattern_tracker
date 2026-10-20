@@ -43,14 +43,14 @@ public class GeminiClient implements LlmClient {
                 .put("responseMimeType", "application/json")
                 .put("temperature", 0);
 
-        HttpRequest req = HttpRequest.newBuilder(endpoint)
+        HttpRequest.Builder req = HttpRequest.newBuilder(endpoint)
                 .timeout(Duration.ofMinutes(3))
                 .header("Content-Type", "application/json")
-                .header("x-goog-api-key", apiKey)
-                .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
-                .build();
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString()));
+        // Blank key: an egress proxy adds the header (Claude cloud network secret).
+        if (apiKey != null && !apiKey.isBlank()) req.header("x-goog-api-key", apiKey);
         try {
-            HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> res = http.send(req.build(), HttpResponse.BodyHandlers.ofString());
             if (res.statusCode() / 100 != 2) {
                 throw new LlmException("Gemini HTTP " + res.statusCode());
             }

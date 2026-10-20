@@ -66,6 +66,13 @@ class GeminiClientTest {
     }
 
     @Test
+    void blankKeySendsNoKeyHeaderSoAProxyCanInjectIt() {
+        new GeminiClient(HttpClient.newHttpClient(), mapper,
+                "http://127.0.0.1:" + server.getAddress().getPort(), "m-1", "").completeJson("s", "u", List.of());
+        assertThat(key.get()).isNull();
+    }
+
+    @Test
     void httpErrorsDoNotLeakTheResponseBody() {
         status = 429;
         reply = "{\"error\":\"quota for SECRET project\"}";
