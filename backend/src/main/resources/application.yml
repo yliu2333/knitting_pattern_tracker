@@ -1,4 +1,8 @@
 spring:
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
   datasource:            # app role: subject to RLS
     url: ${DB_URL:jdbc:postgresql://localhost:5432/knit}
     username: ${DB_APP_USER:kpt_app}
@@ -20,3 +24,8 @@ app:
     client-ids: ${APPLE_CLIENT_IDS:}
     jwks-uri: https://appleid.apple.com/auth/keys
     issuer: https://appleid.apple.com
+  llm:
+    gemini:
+      base-url: https://generativelanguage.googleapis.com
+      model: ${GEMINI_MODEL:gemini-2.5-flash}
+      api-key: ${GEMINI_API_KEY:}

@@ -53,7 +53,7 @@ ir/         canonical IR records (PatternIr → SectionIr → StepIr → RowIr �
 ## Local dev
 - `cd backend && docker compose up -d` (Postgres+pgvector; `db/init` creates app role `kpt_app`). Flyway migrates as owner `kpt_owner`; the app connects as `kpt_app`.
 - `./gradlew test` (Testcontainers; needs Docker).
-- Env: `JWT_SECRET` (≥ 32 bytes, required), `APPLE_CLIENT_IDS` (iOS bundle id(s); empty = Apple login off), `DB_URL`, `DB_APP_USER/PASSWORD`, `DB_OWNER_USER/PASSWORD`.
+- Env: `JWT_SECRET` (≥ 32 bytes, required), `GEMINI_API_KEY` (empty = upload parsing fails with 422), `GEMINI_MODEL` (default gemini-2.5-flash), `APPLE_CLIENT_IDS` (iOS bundle id(s); empty = Apple login off), `DB_URL`, `DB_APP_USER/PASSWORD`, `DB_OWNER_USER/PASSWORD`.
 
 ## Auth
 - iOS: Sign in with Apple with `request.nonce = sha256(rawNonce)` → `POST /api/auth/apple {identityToken, nonce: rawNonce}` → `{userId, accessToken (1h), expiresIn, refreshToken (60d)}`
@@ -64,6 +64,7 @@ ir/         canonical IR records (PatternIr → SectionIr → StepIr → RowIr �
 
 ## API (all require `Authorization: Bearer <our JWT>`, subject = app_user id)
 - `GET /api/me` · `PATCH /api/me {uiLang}` · `DELETE /api/me` (deletes account + all data; App Store requirement)
+- `POST /api/patterns/upload` (multipart `file` = PDF / image / text, optional `size`) → LLM parse → 201; same file+size again → 200 cached, no LLM call; parse failure → 422 `{errors}`
 - `POST /api/patterns` (IR JSON; same IR again → 200 existing id) · `GET /api/patterns`
 - `POST /api/projects {patternId}` · `GET /api/projects` · `GET /api/projects/{id}` → TrackerView (sections, steps, done/finished, start/end sts, currentStepId, percent, lastAction)
 - `GET /api/projects/{id}/steps/{stepId}/rounds/{round}?lang=zh|en` → literal instruction text for one round (0-based)
@@ -127,6 +128,8 @@ Root cause of that class of bug: isolation relied on every query *remembering* t
 4. SwiftUI tracker reading the API (port prototype UX: current step, n/N, segments, next step, undo)
 5. Sign in with Apple + JWT — ✅ backend; iOS side comes with milestone 4
 6. TextPatternParser: LLM prompt + glossary + JSON schema validation + retry; test on real EN/JP/CN patterns
+   - ✅ pipeline: `resources/llm/parse-system.md` + `glossary.md` → Gemini (JSON mode, key in header) → strict Jackson → IrNormalizer (Java does REPEAT totals, inch→cm) → IrValidator → StitchSimulator; errors fed back, max 3 attempts. Parser version `text-v1/<model>` is part of the cache key: bump it when the prompt changes.
+   - ⏳ live quality check: `LiveGeminiParseTest` runs only with `GEMINI_API_KEY`; real patterns go in the private repo `sources/`
 7. GaugeAdapter: rescale counts with constraints (ribbing parity, repeat multiples, even decrease spacing, short-row depth by row gauge)
 8. Later: JP knit symbol charts → crochet charts
 

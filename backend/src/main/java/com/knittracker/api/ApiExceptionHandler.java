@@ -4,6 +4,7 @@ import com.knittracker.service.ConflictException;
 import com.knittracker.service.NotFoundException;
 import com.knittracker.service.PatternImportService.InvalidIrException;
 import com.knittracker.service.auth.AuthService.AuthFailedException;
+import com.knittracker.service.parse.ParseFailedException;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -31,6 +32,12 @@ public class ApiExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     Map<String, String> conflict(ConflictException e) {
         return Map.of("error", e.getMessage());
+    }
+
+    @ExceptionHandler(ParseFailedException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    Map<String, List<String>> parseFailed(ParseFailedException e) {
+        return Map.of("errors", e.errors());
     }
 
     @ExceptionHandler(InvalidIrException.class)

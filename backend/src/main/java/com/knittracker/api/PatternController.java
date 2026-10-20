@@ -8,6 +8,10 @@ import com.knittracker.ir.PatternIr;
 import com.knittracker.security.CurrentUser;
 import com.knittracker.security.UserScope;
 import com.knittracker.service.PatternImportService;
+import com.knittracker.service.parse.PatternParser.SourceFile;
+import com.knittracker.service.parse.PatternUploadService;
+import com.knittracker.service.parse.PatternUploadService.UploadResult;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -17,14 +21,17 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
-/** Patterns of the caller. For now IR is uploaded directly; milestone 6 adds file upload + LLM parse. */
+/** Patterns of the caller: upload a source file (LLM parse) or IR JSON directly (fixtures, tests). */
 @RestController
 @RequestMapping("/api/patterns")
 public class PatternController {
@@ -36,9 +43,11 @@ public class PatternController {
     private final UserScope scope;
     private final CurrentUser currentUser;
     private final ObjectMapper mapper;
+    private final PatternUploadService uploads;
 
     public PatternController(PatternImportService importer, PatternReadDao patterns, UserScope scope,
-                             CurrentUser currentUser, ObjectMapper mapper) {
+                             CurrentUser currentUser, ObjectMapper mapper, PatternUploadService uploads) {
+        this.uploads = uploads;
         this.importer = importer;
         this.patterns = patterns;
         this.scope = scope;
@@ -54,6 +63,19 @@ public class PatternController {
         if (existing.isPresent()) return ResponseEntity.ok(Map.of("id", existing.get()));
         UUID id = importer.importPattern(currentUser.id(), ir, hash, MANUAL_IR);
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("id", id));
+    }
+
+    /**
+     * A purchased pattern file (PDF, photo, or text) in any language. Parsed synchronously by the LLM
+     * (can take a minute). Same file + size again → 200 with the cached pattern, no LLM call.
+     */
+    @PostMapping(path = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, UUID>> uploadFile(@RequestParam("file") MultipartFile file,
+                                                        @RequestParam(value = "size", required = false) String size)
+            throws IOException {
+        UploadResult r = uploads.upload(
+                new SourceFile(file.getOriginalFilename(), file.getContentType(), file.getBytes()), size);
+        return ResponseEntity.status(r.created() ? HttpStatus.CREATED : HttpStatus.OK).body(Map.of("id", r.patternId()));
     }
 
     @GetMapping
