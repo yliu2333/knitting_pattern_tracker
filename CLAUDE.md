@@ -53,7 +53,7 @@ ir/         canonical IR records (PatternIr → SectionIr → StepIr → RowIr �
 ## Local dev
 - `cd backend && docker compose up -d` (Postgres+pgvector; `db/init` creates app role `kpt_app`). Flyway migrates as owner `kpt_owner`; the app connects as `kpt_app`.
 - `./gradlew test` (Testcontainers; needs Docker).
-- Env: `JWT_SECRET` (≥ 32 bytes, required), `GEMINI_API_KEY` (empty = upload parsing fails with 422), `GEMINI_MODEL` (default gemini-2.5-flash), `APPLE_CLIENT_IDS` (iOS bundle id(s); empty = Apple login off), `DB_URL`, `DB_APP_USER/PASSWORD`, `DB_OWNER_USER/PASSWORD`.
+- Env: `JWT_SECRET` (≥ 32 bytes, required), `GEMINI_API_KEY` (may be empty when an egress proxy injects `x-goog-api-key`, e.g. a Claude cloud network secret for `generativelanguage.googleapis.com`), `GEMINI_MODEL` (default gemini-2.5-flash), `APPLE_CLIENT_IDS` (iOS bundle id(s); empty = Apple login off), `DB_URL`, `DB_APP_USER/PASSWORD`, `DB_OWNER_USER/PASSWORD`.
 
 ## Auth
 - iOS: Sign in with Apple with `request.nonce = sha256(rawNonce)` → `POST /api/auth/apple {identityToken, nonce: rawNonce}` → `{userId, accessToken (1h), expiresIn, refreshToken (60d)}`
@@ -129,7 +129,7 @@ Root cause of that class of bug: isolation relied on every query *remembering* t
 5. Sign in with Apple + JWT — ✅ backend; iOS side comes with milestone 4
 6. TextPatternParser: LLM prompt + glossary + JSON schema validation + retry; test on real EN/JP/CN patterns
    - ✅ pipeline: `resources/llm/parse-system.md` + `glossary.md` → Gemini (JSON mode, key in header) → strict Jackson → IrNormalizer (Java does REPEAT totals, inch→cm) → IrValidator → StitchSimulator; errors fed back, max 3 attempts. Parser version `text-v1/<model>` is part of the cache key: bump it when the prompt changes.
-   - ⏳ live quality check: `LiveGeminiParseTest` runs only with `GEMINI_API_KEY`; real patterns go in the private repo `sources/`
+   - ⏳ live quality check: `GEMINI_LIVE=1 ./gradlew test --tests '*LiveGeminiParseTest'`; real patterns go in the private repo `sources/`
 7. GaugeAdapter: rescale counts with constraints (ribbing parity, repeat multiples, even decrease spacing, short-row depth by row gauge)
 8. Later: JP knit symbol charts → crochet charts
 

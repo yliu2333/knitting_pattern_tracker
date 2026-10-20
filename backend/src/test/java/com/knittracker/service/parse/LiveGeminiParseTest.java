@@ -16,8 +16,11 @@ import java.nio.file.Files;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
-/** Real Gemini call (only with GEMINI_API_KEY). Judged by stitch counts, not by exact JSON. */
-@EnabledIfEnvironmentVariable(named = "GEMINI_API_KEY", matches = ".+")
+/**
+ * Real Gemini call. Run with GEMINI_LIVE=1 (key from GEMINI_API_KEY, or injected by the egress proxy).
+ * Judged by stitch counts, not by exact JSON.
+ */
+@EnabledIfEnvironmentVariable(named = "GEMINI_LIVE", matches = "1|true")
 class LiveGeminiParseTest {
 
     @Test
@@ -25,7 +28,7 @@ class LiveGeminiParseTest {
         ObjectMapper mapper = new ObjectMapper();
         String model = System.getenv().getOrDefault("GEMINI_MODEL", "gemini-2.5-flash");
         var llm = new GeminiClient(HttpClient.newHttpClient(), mapper,
-                "https://generativelanguage.googleapis.com", model, System.getenv("GEMINI_API_KEY"));
+                "https://generativelanguage.googleapis.com", model, System.getenv().getOrDefault("GEMINI_API_KEY", ""));
         byte[] source = Files.readAllBytes(Fixtures.PUBLIC_DIR.resolve("sample-hat.source.txt"));
 
         PatternParser.ParsedPattern parsed = new TextPatternParser(llm, mapper, model)
