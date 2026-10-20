@@ -18,8 +18,9 @@ public class LlmConfig {
     LlmClient llmClient(ObjectMapper mapper,
                         @Value("${app.llm.gemini.base-url}") String baseUrl,
                         @Value("${app.llm.gemini.model}") String model,
-                        @Value("${app.llm.gemini.api-key}") String apiKey) {
+                        @Value("${app.llm.gemini.api-key}") String apiKey,
+                        @Value("${app.llm.gemini.thinking-level}") String thinkingLevel) {
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).build();
-        return new GeminiClient(http, mapper, baseUrl, model, apiKey);
+        return new GeminiClient(http, mapper, baseUrl, model, apiKey, thinkingLevel);
     }
 }

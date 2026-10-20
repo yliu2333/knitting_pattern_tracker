@@ -24,7 +24,14 @@ class GeminiClientTest {
     final AtomicReference<String> key = new AtomicReference<>();
     final AtomicReference<JsonNode> body = new AtomicReference<>();
     volatile int status = 200;
-    volatile String reply = "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"{\\\"a\\\":\"},{\"text\":\"1}\"}]}}]}";
+    volatile String reply = """
+            data: {"candidates":[{"content":{"parts":[{"text":"planning","thought":true}]}}]}
+
+            data: {"candidates":[{"content":{"parts":[{"text":"{\\"a\\":"}]}}]}
+
+            data: {"candidates":[{"content":{"parts":[{"text":"1}"}]}}]}
+
+            """;
 
     @BeforeEach
     void start() throws Exception {
@@ -48,28 +55,30 @@ class GeminiClientTest {
 
     GeminiClient client() {
         return new GeminiClient(HttpClient.newHttpClient(), mapper,
-                "http://127.0.0.1:" + server.getAddress().getPort(), "m-1", "SECRET");
+                "http://127.0.0.1:" + server.getAddress().getPort(), "m-1", "SECRET", "low");
     }
 
     @Test
-    void sendsSystemPromptAttachmentsAndJsonModeWithKeyInHeaderOnly() {
+    void streamsAndJoinsNonThoughtTextWithKeyInHeaderOnly() {
         String out = client().completeJson("sys", "user", List.of(new Attachment("application/pdf", new byte[] {7})));
 
         assertThat(out).isEqualTo("{\"a\":1}");
-        assertThat(path.get()).isEqualTo("/v1beta/models/m-1:generateContent").doesNotContain("SECRET");
+        assertThat(path.get()).isEqualTo("/v1beta/models/m-1:streamGenerateContent?alt=sse").doesNotContain("SECRET");
         assertThat(key.get()).isEqualTo("SECRET");
         assertThat(body.get().at("/systemInstruction/parts/0/text").asText()).isEqualTo("sys");
         assertThat(body.get().at("/contents/0/parts/0/inline_data/mime_type").asText()).isEqualTo("application/pdf");
         assertThat(body.get().at("/contents/0/parts/0/inline_data/data").asText()).isEqualTo("Bw==");
         assertThat(body.get().at("/contents/0/parts/1/text").asText()).isEqualTo("user");
         assertThat(body.get().at("/generationConfig/responseMimeType").asText()).isEqualTo("application/json");
+        assertThat(body.get().at("/generationConfig/thinkingConfig/thinkingLevel").asText()).isEqualTo("low");
     }
 
     @Test
     void blankKeySendsNoKeyHeaderSoAProxyCanInjectIt() {
         new GeminiClient(HttpClient.newHttpClient(), mapper,
-                "http://127.0.0.1:" + server.getAddress().getPort(), "m-1", "").completeJson("s", "u", List.of());
+                "http://127.0.0.1:" + server.getAddress().getPort(), "m-1", "", "").completeJson("s", "u", List.of());
         assertThat(key.get()).isNull();
+        assertThat(body.get().at("/generationConfig/thinkingConfig").isMissingNode()).isTrue();
     }
 
     @Test

@@ -13,19 +13,26 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 
-/** Google Gemini generateContent over REST. The API key goes in a header, never in the URL (URLs get logged). */
+/**
+ * Google Gemini streamGenerateContent (SSE) over REST. The API key goes in a header, never in the URL (URLs get logged).
+ * Streaming, not generateContent: egress proxies drop requests with no response byte for ~30s, and a PDF parse thinks longer.
+ */
 public class GeminiClient implements LlmClient {
 
     private final HttpClient http;
     private final ObjectMapper mapper;
     private final URI endpoint;
     private final String apiKey;
+    private final String thinkingLevel;
 
-    public GeminiClient(HttpClient http, ObjectMapper mapper, String baseUrl, String model, String apiKey) {
+    /** @param thinkingLevel Gemini 3 thinking level (low/medium/high); blank = model default */
+    public GeminiClient(HttpClient http, ObjectMapper mapper, String baseUrl, String model, String apiKey,
+                        String thinkingLevel) {
         this.http = http;
         this.mapper = mapper;
-        this.endpoint = URI.create(baseUrl + "/v1beta/models/" + model + ":generateContent");
+        this.endpoint = URI.create(baseUrl + "/v1beta/models/" + model + ":streamGenerateContent?alt=sse");
         this.apiKey = apiKey;
+        this.thinkingLevel = thinkingLevel;
     }
 
     @Override
@@ -39,9 +46,12 @@ public class GeminiClient implements LlmClient {
                     .put("data", Base64.getEncoder().encodeToString(a.data()));
         }
         parts.addObject().put("text", userPrompt);
-        body.putObject("generationConfig")
+        ObjectNode config = body.putObject("generationConfig")
                 .put("responseMimeType", "application/json")
                 .put("temperature", 0);
+        if (thinkingLevel != null && !thinkingLevel.isBlank()) {
+            config.putObject("thinkingConfig").put("thinkingLevel", thinkingLevel);
+        }
 
         HttpRequest.Builder req = HttpRequest.newBuilder(endpoint)
                 .timeout(Duration.ofMinutes(3))
@@ -54,9 +64,15 @@ public class GeminiClient implements LlmClient {
             if (res.statusCode() / 100 != 2) {
                 throw new LlmException("Gemini HTTP " + res.statusCode());
             }
-            JsonNode parts0 = mapper.readTree(res.body()).path("candidates").path(0).path("content").path("parts");
+            // One "data: {chunk}" line per event; the answer is the concatenated non-thought text parts.
             StringBuilder text = new StringBuilder();
-            parts0.forEach(p -> text.append(p.path("text").asText("")));
+            for (String line : res.body().split("\\R")) {
+                if (!line.startsWith("data:")) continue;
+                JsonNode chunkParts = mapper.readTree(line.substring(5)).path("candidates").path(0).path("content").path("parts");
+                chunkParts.forEach(p -> {
+                    if (!p.path("thought").asBoolean(false)) text.append(p.path("text").asText(""));
+                });
+            }
             if (text.isEmpty()) throw new LlmException("Gemini returned no text");
             return text.toString();
         } catch (IOException e) {

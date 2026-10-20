@@ -27,5 +27,7 @@ app:
   llm:
     gemini:
       base-url: https://generativelanguage.googleapis.com
-      model: ${GEMINI_MODEL:gemini-2.5-flash}
+      model: ${GEMINI_MODEL:gemini-3.8-flash}
       api-key: ${GEMINI_API_KEY:}
+      # low / medium / high (Gemini 3); empty = model default
+      thinking-level: ${GEMINI_THINKING_LEVEL:}
