@@ -33,7 +33,7 @@ class IrValidatorTest {
     void rejectsOpenEndedStepWithoutTarget() {
         StepIr st = hat.sections().get(1).steps().get(0);
         StepIr noTarget = new StepIr(st.kind(), st.unit(), st.titleKey(), st.titleSrc(), st.noteSrc(), st.needleMm(),
-                null, null, null, null, null, st.rows());
+                null, null, null, null, null, st.rows(), null);
         List<SectionIr> sections = new ArrayList<>(hat.sections());
         sections.set(1, new SectionIr(null, "Body", List.of(noTarget)));
         assertThat(IrValidator.validate(copy(sections))).anyMatch(e -> e.contains("needs a target"));
@@ -43,7 +43,7 @@ class IrValidatorTest {
         StepIr st = hat.sections().get(0).steps().get(0);
         StepIr replaced = new StepIr(st.kind(), st.unit(), st.titleKey(), st.titleSrc(), st.noteSrc(), st.needleMm(),
                 st.total(), st.groupCount(), st.rowsPerGroup(), st.target(), st.structure(),
-                List.of(new RowIr(null, null, null, List.of(seg))));
+                List.of(new RowIr(null, null, null, List.of(seg))), null);
         List<SectionIr> sections = new ArrayList<>(hat.sections());
         sections.set(0, new SectionIr(null, "Brim", List.of(replaced)));
         return copy(sections);

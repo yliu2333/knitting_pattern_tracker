@@ -3,6 +3,7 @@ package com.knittracker.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.knittracker.dao.PatternDao;
+import com.knittracker.dao.TechniqueDao;
 import com.knittracker.ir.IrValidator;
 import com.knittracker.ir.PatternIr;
 import com.knittracker.ir.RowIr;
@@ -23,8 +24,10 @@ public class PatternImportService {
     private final PatternDao dao;
     private final UserScope userScope;
     private final ObjectMapper mapper;
+    private final TechniqueDao techniques;
 
-    public PatternImportService(PatternDao dao, UserScope userScope, ObjectMapper mapper) {
+    public PatternImportService(PatternDao dao, UserScope userScope, ObjectMapper mapper, TechniqueDao techniques) {
+        this.techniques = techniques;
         this.dao = dao;
         this.userScope = userScope;
         this.mapper = mapper;
@@ -33,14 +36,14 @@ public class PatternImportService {
     public UUID importPattern(UUID userId, PatternIr ir, String fileHash, String parserVersion) {
         List<String> errors = IrValidator.validate(ir);
         if (!errors.isEmpty()) throw new InvalidIrException(errors);
-        PatternPlan plan;
-        try {
-            plan = StitchSimulator.simulate(ir);
-        } catch (StitchSimulator.SimulationException e) {
-            throw new InvalidIrException(List.of(e.getMessage()));
-        }
         String gauge = toJson(ir.gauge());
         return userScope.call(userId, () -> {
+            PatternPlan plan;
+            try {
+                plan = StitchSimulator.simulate(ir, techniques.load());
+            } catch (StitchSimulator.SimulationException e) {
+                throw new InvalidIrException(List.of(e.getMessage()));
+            }
             UUID patternId = dao.insertPattern(userId, ir, fileHash, parserVersion, gauge);
             for (int s = 0; s < ir.sections().size(); s++) {
                 SectionIr sec = ir.sections().get(s);

@@ -99,7 +99,7 @@ public class PatternReadDao {
                 .list();
         jdbc.sql("""
                 SELECT t.id, t.section_id, t.kind, t.unit, t.title_key, t.title_src, t.note_src, t.needle_mm,
-                       t.total, t.group_count, t.rows_per_group, t.target::text, t.structure::text
+                       t.total, t.group_count, t.rows_per_group, t.target::text, t.structure::text, t.stated_end_sts
                 FROM step t JOIN section s ON s.id = t.section_id
                 WHERE s.pattern_id = ?
                 ORDER BY s.ord, t.ord""")
@@ -112,7 +112,7 @@ public class PatternReadDao {
                             rs.getObject(8) == null ? null : rs.getDouble(8),
                             (Integer) rs.getObject(9), (Integer) rs.getObject(10), (Integer) rs.getObject(11),
                             json(rs.getString(12)), json(rs.getString(13)),
-                            rowsByStep.getOrDefault(stepId, List.of()));
+                            rowsByStep.getOrDefault(stepId, List.of()), (Integer) rs.getObject(14));
                     SectionBuilder sb = sections.get(rs.getObject(2, UUID.class));
                     sb.steps.add(step);
                     return sb.ids.add(stepId);

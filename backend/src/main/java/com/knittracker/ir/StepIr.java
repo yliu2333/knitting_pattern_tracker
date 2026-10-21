@@ -6,6 +6,8 @@ import java.util.List;
 /**
  * One trackable step. {@code rows} cycle: round i uses rows.get(i % rows.size()).
  * {@code total == null} means open-ended (knit until {@link #target}).
+ * {@code statedEndSts} is the count the pattern itself says the step ends with ("36 sts"), copied, not computed;
+ * the simulator checks it.
  */
 public record StepIr(
         Kind kind,
@@ -19,7 +21,8 @@ public record StepIr(
         Integer rowsPerGroup,
         JsonNode target,
         JsonNode structure,
-        List<RowIr> rows) {
+        List<RowIr> rows,
+        Integer statedEndSts) {
 
     public enum Kind { ROWS, REPEAT, CHECKPOINT }
 

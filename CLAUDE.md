@@ -9,7 +9,7 @@ Prototype: `fixtures/private/reference/paofu-tee-tracker.html` (private repo, se
 ## Hard rules
 - **Copyright**: uploaded patterns are private to the uploader. No sharing, publishing, or exporting translated patterns to other users. Never ship third-party patterns in the app.
 - **LLM never does math.** LLM only parses source → canonical JSON matching our schema. All stitch counts, gauge conversion, increase/decrease distribution are deterministic Java code.
-- **One LLM call per pattern** (cached, see Isolation). Tracking uses zero LLM calls.
+- **LLM calls per pattern: one parse + at most one "define" call per attempt for techniques the library doesn't know** (all cached, see Isolation and Technique library). Tracking uses zero LLM calls.
 - Instructions always state literal counts per segment ("下针 17，放记号圈，下针 9…"), never "knit to marker".
 - **User data isolation is non-negotiable** (see section below).
 
@@ -34,7 +34,21 @@ source (any lang) --[LLM parse]--> Canonical IR (language-neutral) --[determinis
 ## Fixtures & copyright (this repo is public)
 - Purchased patterns (泡芙 Tee IR, prototype HTML) live ONLY in the private repo `yliu2333/knitting-private-fixtures`, cloned or symlinked to `fixtures/private/` (git-ignored). Never commit pattern content here, not even temporarily: git history is permanent.
 - Tests discover `fixtures/*.ir.json` + `fixtures/private/patterns/*.ir.json`; private ones are skipped when absent.
-- IR simulation semantics: a row/round starting at BOR slips it implicitly; `K until END` crossing markers is split into literal pieces (`k28, sm, k9…`); inside `REPEAT until END` markers are slipped silently; `PICKUP_HELD` / `RESUME_MAIN` switch the active piece.
+- `expected/<name>.expected.json` (private): stitch counts the pattern itself states, in order. Both the hand-written IR (`ExpectedCountsTest`) and Gemini's parse (`LivePrivateSourcesTest`, saves raw output to private `parsed/`) must hit them as a subsequence of step end counts.
+- IR simulation semantics (StitchSimulator):
+  - a row/round starting at BOR slips it implicitly; `K until END` crossing markers is split into literal pieces (`k28, sm, k9…`); inside `REPEAT until END` markers are slipped silently
+  - `until END` = BOR on a joined round, the edge on a flat piece; `stopBefore` works with MARKER/BOR/END and on `REPEAT until …`
+  - a CHECKPOINT on a joined round is worked as a round; a ROUND step on an unjoined piece joins it
+  - pieces: `HOLD` (count/until, `attrs.piece` name; markers in the span are dropped) keeps the round joined unless the next action is `TURN`, which opens the round there (flat piece, edge markers dropped); flat ROW steps turn at the edge implicitly; `PUT_ASIDE` sets the whole piece aside; `PICKUP_HELD` makes a held piece the working piece; `JOIN_PIECE` puts held sts on the left needle mid-row; `RESUME_MAIN` returns to the body; `PM BOR` moves an existing BOR
+  - `PICKUP_EDGE`, `CO_*` add sts; `BO*` empties the needle (markers too)
+
+## Technique library (learns new techniques, never duplicates)
+- Source of truth for shipped techniques: `resources/techniques/builtin.json` (kind, structural `def`, names, zh/en templates, EN/JA/ZH aliases). Seeded into `technique` / `technique_alias` / `technique_i18n` by the repeatable Java migration `db/migration/R__Builtin_techniques`. The parse prompt's glossary is generated from the user's library (`GlossaryPrompt`).
+- Kinds: `PRIMITIVE` (Java semantics: K/P/REPEAT/markers/TURN/pieces… not learnable), `STITCH` (consumes → produces + descriptors worked/lean/tbl/yarn/source/method/cross), `BINDOFF` (empties the needle), `FINISHING` (no count effect: seaming, blocking…), `MACRO` (steps of existing codes).
+- Learning (`TechniqueLearner`, prompt `llm/define-system.md`): unknown term → alias lookup (no LLM) → one define call with the whole library listed → `DefinitionValidator` → de-dup: `aliasOf` answer, same structural `Signature` as an existing technique, or a name already owned by one ⇒ it becomes an **alias**, never a second technique; a name owned by a different structure is rejected. Accepted ones are PERSONAL (`user_technique*`, RLS) and marked verified when the pattern's stated counts all matched.
+- Names: one normalized name (`AliasNorm`: NFKC, case, separators) → exactly one technique (PK on `alias_norm`). UI shows the canonical name + "也叫" (`GET /api/techniques`).
+- Promotion (`technique_promote()`, SECURITY DEFINER): a structure taught by ≥ 2 users (≥ 1 verified) becomes GLOBAL; an alias two users agree on becomes global. Only definitions, names and templates are copied, never pattern content.
+- Stated counts: the parser copies totals the pattern states (`statedEndSts`, `VERIFY_COUNT count`); the simulator fails on any mismatch. This is what verifies both the parse and newly learned techniques.
 
 ## Backend layering (same as video-platform: api / service / dao)
 ```
@@ -42,7 +56,8 @@ api/        REST controllers, DTOs
 service/    business logic
   parse/    PatternParser implementations
   count/    StitchSimulator: knits the IR stitch by stitch → literal counts per segment, start/end sts (all stitch math)
-  render/   InstructionRenderer (resolved segments + technique_i18n templates → text)
+  render/   InstructionRenderer (resolved segments + templates from the user's TechniqueLibrary → text)
+  technique/ TechniqueLibrary, Signature, AliasNorm, TechniqueLearner, DefinitionValidator, GlossaryPrompt
   gauge/    GaugeAdapter (pure functions, heavily unit-tested)
   llm/      LlmClient interface + GeminiClient, GroqClient
 security/   CurrentUser, JWT filter, UserScope (sets app.user_id per transaction)
@@ -53,7 +68,7 @@ ir/         canonical IR records (PatternIr → SectionIr → StepIr → RowIr �
 ## Local dev
 - `cd backend && docker compose up -d` (Postgres+pgvector; `db/init` creates app role `kpt_app`). Flyway migrates as owner `kpt_owner`; the app connects as `kpt_app`.
 - `./gradlew test` (Testcontainers; needs Docker).
-- Env: `JWT_SECRET` (≥ 32 bytes, required), `GEMINI_API_KEY` (may be empty when an egress proxy injects `x-goog-api-key`, e.g. a Claude cloud network secret for `generativelanguage.googleapis.com`), `GEMINI_MODEL` (default gemini-2.5-flash), `APPLE_CLIENT_IDS` (iOS bundle id(s); empty = Apple login off), `DB_URL`, `DB_APP_USER/PASSWORD`, `DB_OWNER_USER/PASSWORD`.
+- Env: `JWT_SECRET` (≥ 32 bytes, required), `GEMINI_API_KEY` (may be empty when an egress proxy injects `x-goog-api-key`, e.g. a Claude cloud network secret for `generativelanguage.googleapis.com`), `GEMINI_MODEL` (default gemini-3.8-flash; 2.5-flash is closed to new keys), `GEMINI_THINKING_LEVEL` (low|medium|high, empty = model default; use `low` behind the Claude cloud proxy, which drops responses with no byte in ~30s), `APPLE_CLIENT_IDS` (iOS bundle id(s); empty = Apple login off), `DB_URL`, `DB_APP_USER/PASSWORD`, `DB_OWNER_USER/PASSWORD`.
 
 ## Auth
 - iOS: Sign in with Apple with `request.nonce = sha256(rawNonce)` → `POST /api/auth/apple {identityToken, nonce: rawNonce}` → `{userId, accessToken (1h), expiresIn, refreshToken (60d)}`
@@ -66,6 +81,7 @@ ir/         canonical IR records (PatternIr → SectionIr → StepIr → RowIr �
 - `GET /api/me` · `PATCH /api/me {uiLang}` · `DELETE /api/me` (deletes account + all data; App Store requirement)
 - `POST /api/patterns/upload` (multipart `file` = PDF / image / text, optional `size`) → LLM parse → 201; same file+size again → 200 cached, no LLM call; parse failure → 422 `{errors}`
 - `POST /api/patterns` (IR JSON; same IR again → 200 existing id) · `GET /api/patterns`
+- `GET /api/techniques?lang=` → caller's library: code, kind, name, alsoKnownAs, origin (BUILTIN/GLOBAL/PERSONAL)
 - `POST /api/projects {patternId}` · `GET /api/projects` · `GET /api/projects/{id}` → TrackerView (sections, steps, done/finished, start/end sts, currentStepId, percent, lastAction)
 - `GET /api/projects/{id}/steps/{stepId}/rounds/{round}?lang=zh|en` → literal instruction text for one round (0-based)
 - `POST …/steps/{stepId}/advance | retreat | finish | rewind?round=n` · `PUT …/steps/{stepId}/note` · `POST /api/projects/{id}/undo`
@@ -114,6 +130,8 @@ Root cause of that class of bug: isolation relied on every query *remembering* t
   - `REPEAT` segments own children via `parent_id` (`count` times, or `until`)
   - markers are segments (`PM`/`SM`/`RM` with optional `marker` name), not a flag
 - `technique_i18n(code, lang, name, template, short_desc, video_url)` — global, not user-owned; `template` drives rendering (`下针 {n}` / `k{n}`)
+- `technique(code, kind, def, signature unique, origin, names)` · `technique_alias(alias_norm PK, alias, lang, code)` — global library
+- `user_technique(user_id, code, kind, def, signature, names, templates, verified)` · `user_technique_alias(user_id, alias_norm, alias, lang, code)` — learned, RLS
 - `project(id, user_id, pattern_id, user_gauge jsonb, target_size jsonb, adapted jsonb)` — one pattern can have multiple projects
 - `progress(user_id, project_id, step_id, done, finished, note)`
 - `progress_event(id, user_id, project_id, payload jsonb, created_at)` — append-only history for undo / rewind (拆线)
@@ -128,8 +146,9 @@ Root cause of that class of bug: isolation relied on every query *remembering* t
 4. SwiftUI tracker reading the API (port prototype UX: current step, n/N, segments, next step, undo)
 5. Sign in with Apple + JWT — ✅ backend; iOS side comes with milestone 4
 6. TextPatternParser: LLM prompt + glossary + JSON schema validation + retry; test on real EN/JP/CN patterns
-   - ✅ pipeline: `resources/llm/parse-system.md` + `glossary.md` → Gemini (JSON mode, key in header) → strict Jackson → IrNormalizer (Java does REPEAT totals, inch→cm) → IrValidator → StitchSimulator; errors fed back, max 3 attempts. Parser version `text-v1/<model>` is part of the cache key: bump it when the prompt changes.
-   - ⏳ live quality check: `GEMINI_LIVE=1 ./gradlew test --tests '*LiveGeminiParseTest'`; real patterns go in the private repo `sources/`
+   - ✅ pipeline: `resources/llm/parse-system.md` + `glossary.md` → Gemini (JSON mode, SSE streaming, key in header) → strict Jackson → IrNormalizer (Java does REPEAT totals, inch→cm) → IrValidator → StitchSimulator; errors fed back, max 3 attempts. Parser version `text-v3/<model>` is part of the cache key: bump it when the prompt changes.
+   - ⏳ live quality check: `GEMINI_LIVE=1 GEMINI_THINKING_LEVEL=low ./gradlew test --tests '*Live*'`; real patterns go in the private repo `sources/` with an `expected/` file
+   - Sheer na Knit (JA) first live run: 3/3 attempts failed on IR gaps (armhole split/rejoin, edge pick-up, "to N before BOR"). Fixed in simulator + prompt (`text-v2`); hand-written IR now reaches all stated counts. Next: re-run live.
 7. GaugeAdapter: rescale counts with constraints (ribbing parity, repeat multiples, even decrease spacing, short-row depth by row gauge)
 8. Later: JP knit symbol charts → crochet charts
 

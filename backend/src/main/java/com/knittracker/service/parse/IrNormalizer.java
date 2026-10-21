@@ -25,7 +25,7 @@ final class IrNormalizer {
             total = s.groupCount() * s.rowsPerGroup();
         }
         return new StepIr(s.kind(), s.unit(), s.titleKey(), s.titleSrc(), s.noteSrc(), s.needleMm(), total,
-                s.groupCount(), s.rowsPerGroup(), target(s.target()), s.structure(), s.rows());
+                s.groupCount(), s.rowsPerGroup(), target(s.target()), s.structure(), s.rows(), s.statedEndSts());
     }
 
     /** {lengthIn: 6} → adds lengthCm 15.0 (rounded to 0.5 cm). */

@@ -1,6 +1,8 @@
 package com.knittracker.service.parse;
 
 import com.knittracker.dao.PatternReadDao;
+import com.knittracker.dao.TechniqueDao;
+import com.knittracker.service.technique.TechniqueLibrary;
 import com.knittracker.ir.PatternIr.Craft;
 import com.knittracker.ir.PatternIr.SourceType;
 import com.knittracker.security.CurrentUser;
@@ -31,9 +33,11 @@ public class PatternUploadService {
     private final PatternReadDao patterns;
     private final UserScope scope;
     private final CurrentUser currentUser;
+    private final TechniqueDao techniques;
 
     public PatternUploadService(List<PatternParser> parsers, PatternImportService importer, PatternReadDao patterns,
-                                UserScope scope, CurrentUser currentUser) {
+                                UserScope scope, CurrentUser currentUser, TechniqueDao techniques) {
+        this.techniques = techniques;
         this.parsers = parsers;
         this.importer = importer;
         this.patterns = patterns;
@@ -49,8 +53,24 @@ public class PatternUploadService {
         Optional<UUID> cached = scope.asCurrentUser(() -> patterns.findByHash(hash, parser.version()));
         if (cached.isPresent()) return new UploadResult(cached.get(), false);
 
-        PatternParser.ParsedPattern parsed = parser.parse(file, type, new ParseOptions(size));
-        return new UploadResult(importer.importPattern(currentUser.id(), parsed.ir(), hash, parser.version()), true);
+        TechniqueLibrary library = scope.asCurrentUser(techniques::load);
+        // LLM calls happen outside any transaction; what they produced is stored in one transaction below.
+        PatternParser.ParsedPattern parsed = parser.parse(file, type, new ParseOptions(size), library);
+        UUID userId = currentUser.id();
+        boolean verified = statesCounts(parsed.ir());
+        UUID id = scope.call(userId, () -> {
+            techniques.saveLearned(userId, parsed.learned(), parsed.aliases(), verified);
+            return importer.importPattern(userId, parsed.ir(), hash, parser.version());
+        });
+        if (!parsed.learned().isEmpty() || !parsed.aliases().isEmpty()) scope.call(userId, techniques::promote);
+        return new UploadResult(id, true);
+    }
+
+    /** The pattern states stitch counts the simulator checked, so techniques it taught are verified by it. */
+    static boolean statesCounts(com.knittracker.ir.PatternIr ir) {
+        return ir.sections().stream().flatMap(s -> s.steps().stream()).anyMatch(st -> st.statedEndSts() != null
+                || st.rows().stream().anyMatch(r -> r.segments().stream()
+                        .anyMatch(g -> "VERIFY_COUNT".equals(g.code()) && g.count() != null)));
     }
 
     static SourceType sourceType(String mimeType) {
