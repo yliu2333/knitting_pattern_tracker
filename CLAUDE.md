@@ -134,7 +134,7 @@ Root cause of that class of bug: isolation relied on every query *remembering* t
 4. SwiftUI tracker reading the API (port prototype UX: current step, n/N, segments, next step, undo)
 5. Sign in with Apple + JWT — ✅ backend; iOS side comes with milestone 4
 6. TextPatternParser: LLM prompt + glossary + JSON schema validation + retry; test on real EN/JP/CN patterns
-   - ✅ pipeline: `resources/llm/parse-system.md` + `glossary.md` → Gemini (JSON mode, SSE streaming, key in header) → strict Jackson → IrNormalizer (Java does REPEAT totals, inch→cm) → IrValidator → StitchSimulator; errors fed back, max 3 attempts. Parser version `text-v1/<model>` is part of the cache key: bump it when the prompt changes.
+   - ✅ pipeline: `resources/llm/parse-system.md` + `glossary.md` → Gemini (JSON mode, SSE streaming, key in header) → strict Jackson → IrNormalizer (Java does REPEAT totals, inch→cm) → IrValidator → StitchSimulator; errors fed back, max 3 attempts. Parser version `text-v2/<model>` is part of the cache key: bump it when the prompt changes.
    - ⏳ live quality check: `GEMINI_LIVE=1 GEMINI_THINKING_LEVEL=low ./gradlew test --tests '*Live*'`; real patterns go in the private repo `sources/` with an `expected/` file
    - Sheer na Knit (JA) first live run: 3/3 attempts failed on IR gaps (armhole split/rejoin, edge pick-up, "to N before BOR"). Fixed in simulator + prompt (`text-v2`); hand-written IR now reaches all stated counts. Next: re-run live.
 7. GaugeAdapter: rescale counts with constraints (ribbing parity, repeat multiples, even decrease spacing, short-row depth by row gauge)
