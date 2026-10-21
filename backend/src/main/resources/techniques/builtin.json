@@ -1,0 +1,1184 @@
+{
+ "version": 1,
+ "techniques": [
+  {
+   "code": "K",
+   "kind": "PRIMITIVE",
+   "names": {
+    "zh": "下针",
+    "en": "knit",
+    "ja": "表目"
+   },
+   "templates": {
+    "zh": "下针 {n}",
+    "en": "k{n}"
+   },
+   "aliases": {
+    "en": [
+     "k",
+     "knit"
+    ],
+    "ja": [
+     "表目",
+     "表編み"
+    ],
+    "zh": [
+     "下针",
+     "正针"
+    ]
+   }
+  },
+  {
+   "code": "P",
+   "kind": "PRIMITIVE",
+   "names": {
+    "zh": "上针",
+    "en": "purl",
+    "ja": "裏目"
+   },
+   "templates": {
+    "zh": "上针 {n}",
+    "en": "p{n}"
+   },
+   "aliases": {
+    "en": [
+     "p",
+     "purl"
+    ],
+    "ja": [
+     "裏目",
+     "裏編み"
+    ],
+    "zh": [
+     "上针",
+     "反针"
+    ]
+   }
+  },
+  {
+   "code": "REPEAT",
+   "kind": "PRIMITIVE",
+   "names": {
+    "zh": "重复",
+    "en": "repeat"
+   },
+   "templates": {
+    "zh": "({items}) × {times}",
+    "en": "({items}) × {times}"
+   },
+   "aliases": {
+    "en": [
+     "rep",
+     "repeat"
+    ],
+    "ja": [
+     "繰り返す"
+    ],
+    "zh": [
+     "重复"
+    ]
+   }
+  },
+  {
+   "code": "PM",
+   "kind": "PRIMITIVE",
+   "names": {
+    "zh": "放记号圈",
+    "en": "place marker"
+   },
+   "templates": {
+    "zh": "放记号圈",
+    "en": "pm"
+   },
+   "aliases": {
+    "en": [
+     "pm",
+     "place marker"
+    ],
+    "ja": [
+     "マーカーを付ける",
+     "マーカーを入れる"
+    ],
+    "zh": [
+     "放记号圈"
+    ]
+   }
+  },
+  {
+   "code": "SM",
+   "kind": "PRIMITIVE",
+   "names": {
+    "zh": "移记号圈",
+    "en": "slip marker"
+   },
+   "templates": {
+    "zh": "移记号圈",
+    "en": "sm"
+   },
+   "aliases": {
+    "en": [
+     "sm",
+     "slip marker"
+    ],
+    "ja": [
+     "マーカーを移す"
+    ],
+    "zh": [
+     "移记号圈"
+    ]
+   }
+  },
+  {
+   "code": "RM",
+   "kind": "PRIMITIVE",
+   "names": {
+    "zh": "取下记号圈",
+    "en": "remove marker"
+   },
+   "templates": {
+    "zh": "取下记号圈",
+    "en": "rm"
+   },
+   "aliases": {
+    "en": [
+     "rm",
+     "remove marker"
+    ],
+    "ja": [
+     "マーカーを外す"
+    ],
+    "zh": [
+     "取下记号圈"
+    ]
+   }
+  },
+  {
+   "code": "TURN",
+   "kind": "PRIMITIVE",
+   "names": {
+    "zh": "翻面",
+    "en": "turn"
+   },
+   "templates": {
+    "zh": "翻面",
+    "en": "turn"
+   },
+   "aliases": {
+    "en": [
+     "turn"
+    ],
+    "ja": [
+     "編み地を返す"
+    ],
+    "zh": [
+     "翻面"
+    ]
+   }
+  },
+  {
+   "code": "JOIN_ROUND",
+   "kind": "PRIMITIVE",
+   "names": {
+    "zh": "连成圈",
+    "en": "join in the round"
+   },
+   "templates": {
+    "zh": "连成圈（不要扭圈）",
+    "en": "join in the round, careful not to twist"
+   },
+   "aliases": {
+    "en": [
+     "join in the round",
+     "join to work in the round"
+    ],
+    "ja": [
+     "輪にする"
+    ],
+    "zh": [
+     "连成圈",
+     "环形连接"
+    ]
+   }
+  },
+  {
+   "code": "DS",
+   "kind": "PRIMITIVE",
+   "names": {
+    "zh": "德式短行双针",
+    "en": "German short row double stitch"
+   },
+   "templates": {
+    "zh": "DS 做双针",
+    "en": "DS"
+   },
+   "aliases": {
+    "en": [
+     "ds",
+     "make double stitch"
+    ],
+    "ja": [
+     "ダブルステッチ"
+    ],
+    "zh": [
+     "做双针"
+    ]
+   }
+  },
+  {
+   "code": "KDS",
+   "kind": "PRIMITIVE",
+   "names": {
+    "zh": "双针下针合并",
+    "en": "knit double stitch"
+   },
+   "templates": {
+    "zh": "kds 双针当 1 针织下针",
+    "en": "kds"
+   },
+   "aliases": {
+    "en": [
+     "kds",
+     "knit the double stitch"
+    ],
+    "zh": [
+     "双针当1针织下针"
+    ]
+   }
+  },
+  {
+   "code": "PDS",
+   "kind": "PRIMITIVE",
+   "names": {
+    "zh": "双针上针合并",
+    "en": "purl double stitch"
+   },
+   "templates": {
+    "zh": "pds 双针当 1 针织上针",
+    "en": "pds"
+   },
+   "aliases": {
+    "en": [
+     "pds",
+     "purl the double stitch"
+    ],
+    "zh": [
+     "双针当1针织上针"
+    ]
+   }
+  },
+  {
+   "code": "HOLD",
+   "kind": "PRIMITIVE",
+   "names": {
+    "zh": "废线留针",
+    "en": "place on hold"
+   },
+   "templates": {
+    "zh": "{n} 针移到废线上",
+    "en": "place {n} sts on waste yarn"
+   },
+   "aliases": {
+    "en": [
+     "place on hold",
+     "place on waste yarn",
+     "place on scrap yarn"
+    ],
+    "ja": [
+     "休み目にする",
+     "別糸に移す",
+     "ホルダーに休める"
+    ],
+    "zh": [
+     "废线留针",
+     "针目休针"
+    ]
+   }
+  },
+  {
+   "code": "PUT_ASIDE",
+   "kind": "PRIMITIVE",
+   "names": {
+    "zh": "整片休针",
+    "en": "put piece on hold"
+   },
+   "templates": {
+    "zh": "剪线，这一片的针目全部休针",
+    "en": "cut yarn, put all sts on hold"
+   },
+   "aliases": {
+    "en": [
+     "put all sts on hold"
+    ],
+    "ja": [
+     "今編んだ目を休めておく"
+    ],
+    "zh": [
+     "整片休针"
+    ]
+   }
+  },
+  {
+   "code": "PICKUP_HELD",
+   "kind": "PRIMITIVE",
+   "names": {
+    "zh": "废线针目上针",
+    "en": "return held stitches"
+   },
+   "templates": {
+    "zh": "把废线上的 {n} 针放回针上",
+    "en": "return {n} held sts to needle"
+   },
+   "aliases": {
+    "en": [
+     "return held sts to needle"
+    ],
+    "ja": [
+     "休み目を針に戻す",
+     "休めていた目を針に乗せる"
+    ],
+    "zh": [
+     "废线针目上针"
+    ]
+   }
+  },
+  {
+   "code": "JOIN_PIECE",
+   "kind": "PRIMITIVE",
+   "names": {
+    "zh": "休针上针",
+    "en": "return held sts mid-row"
+   },
+   "templates": {
+    "zh": "把休针的 {n} 针移到左针",
+    "en": "place {n} held sts on left needle"
+   },
+   "aliases": {
+    "ja": [
+     "休み目を左針に乗せる"
+    ],
+    "zh": [
+     "休针移回左针"
+    ]
+   }
+  },
+  {
+   "code": "RESUME_MAIN",
+   "kind": "PRIMITIVE",
+   "names": {
+    "zh": "回到身体针目",
+    "en": "return to body stitches"
+   },
+   "templates": {
+    "zh": "回到身体针目",
+    "en": "return to body sts"
+   },
+   "aliases": {
+    "en": [
+     "return to body sts"
+    ],
+    "ja": [
+     "身頃に戻る"
+    ],
+    "zh": [
+     "回到身体针目"
+    ]
+   }
+  },
+  {
+   "code": "VERIFY_COUNT",
+   "kind": "PRIMITIVE",
+   "names": {
+    "zh": "核对针数",
+    "en": "check stitch count"
+   },
+   "templates": {
+    "zh": "核对：针上 {n} 针",
+    "en": "check: {n} sts on needle"
+   },
+   "aliases": {
+    "en": [
+     "you now have"
+    ],
+    "ja": [
+     "目数を確認",
+     "目になる"
+    ],
+    "zh": [
+     "核对针数"
+    ]
+   }
+  },
+  {
+   "code": "UNKNOWN",
+   "kind": "PRIMITIVE",
+   "names": {
+    "zh": "未识别",
+    "en": "unrecognised"
+   },
+   "templates": {
+    "zh": "⚠ {raw}",
+    "en": "⚠ {raw}"
+   }
+  },
+  {
+   "code": "K2TOG",
+   "kind": "STITCH",
+   "names": {
+    "zh": "左上2并1",
+    "en": "knit two together"
+   },
+   "templates": {
+    "zh": "左上2并1",
+    "en": "k2tog"
+   },
+   "def": {
+    "consumes": 2,
+    "produces": 1,
+    "worked": "KNIT",
+    "lean": "RIGHT"
+   },
+   "aliases": {
+    "en": [
+     "k2tog"
+    ],
+    "ja": [
+     "左上2目一度"
+    ],
+    "zh": [
+     "左上2并1",
+     "下针2并1"
+    ]
+   }
+  },
+  {
+   "code": "SSK",
+   "kind": "STITCH",
+   "names": {
+    "zh": "右上2并1",
+    "en": "slip slip knit"
+   },
+   "templates": {
+    "zh": "右上2并1",
+    "en": "ssk"
+   },
+   "def": {
+    "consumes": 2,
+    "produces": 1,
+    "worked": "KNIT",
+    "lean": "LEFT"
+   },
+   "aliases": {
+    "en": [
+     "ssk"
+    ],
+    "ja": [
+     "右上2目一度"
+    ],
+    "zh": [
+     "右上2并1"
+    ]
+   }
+  },
+  {
+   "code": "P2TOG",
+   "kind": "STITCH",
+   "names": {
+    "zh": "上针2并1",
+    "en": "purl two together"
+   },
+   "templates": {
+    "zh": "上针2并1",
+    "en": "p2tog"
+   },
+   "def": {
+    "consumes": 2,
+    "produces": 1,
+    "worked": "PURL",
+    "lean": "RIGHT"
+   },
+   "aliases": {
+    "en": [
+     "p2tog"
+    ],
+    "ja": [
+     "裏目の左上2目一度"
+    ],
+    "zh": [
+     "上针2并1"
+    ]
+   }
+  },
+  {
+   "code": "SSP",
+   "kind": "STITCH",
+   "names": {
+    "zh": "上针右上2并1",
+    "en": "slip slip purl"
+   },
+   "templates": {
+    "zh": "上针右上2并1",
+    "en": "ssp"
+   },
+   "def": {
+    "consumes": 2,
+    "produces": 1,
+    "worked": "PURL",
+    "lean": "LEFT"
+   },
+   "aliases": {
+    "en": [
+     "ssp"
+    ],
+    "ja": [
+     "裏目の右上2目一度"
+    ],
+    "zh": [
+     "上针右上2并1"
+    ]
+   }
+  },
+  {
+   "code": "M1L",
+   "kind": "STITCH",
+   "names": {
+    "zh": "下针左加针",
+    "en": "make 1 left"
+   },
+   "templates": {
+    "zh": "M1L 左加针",
+    "en": "M1L"
+   },
+   "def": {
+    "consumes": 0,
+    "produces": 1,
+    "worked": "KNIT",
+    "lean": "LEFT",
+    "source": "BAR",
+    "tbl": true
+   },
+   "aliases": {
+    "en": [
+     "m1l",
+     "make 1 left",
+     "m1"
+    ],
+    "ja": [
+     "左ねじり増し目"
+    ],
+    "zh": [
+     "左加针"
+    ]
+   }
+  },
+  {
+   "code": "M1R",
+   "kind": "STITCH",
+   "names": {
+    "zh": "下针右加针",
+    "en": "make 1 right"
+   },
+   "templates": {
+    "zh": "M1R 右加针",
+    "en": "M1R"
+   },
+   "def": {
+    "consumes": 0,
+    "produces": 1,
+    "worked": "KNIT",
+    "lean": "RIGHT",
+    "source": "BAR",
+    "tbl": true
+   },
+   "aliases": {
+    "en": [
+     "m1r",
+     "make 1 right"
+    ],
+    "ja": [
+     "右ねじり増し目"
+    ],
+    "zh": [
+     "右加针"
+    ]
+   }
+  },
+  {
+   "code": "M1LP",
+   "kind": "STITCH",
+   "names": {
+    "zh": "上针左加针",
+    "en": "make 1 left purlwise"
+   },
+   "templates": {
+    "zh": "M1L-p 上针左加针",
+    "en": "M1L-p"
+   },
+   "def": {
+    "consumes": 0,
+    "produces": 1,
+    "worked": "PURL",
+    "lean": "LEFT",
+    "source": "BAR",
+    "tbl": true
+   },
+   "aliases": {
+    "en": [
+     "m1lp",
+     "m1l purlwise",
+     "m1l-p"
+    ],
+    "ja": [
+     "裏目の左ねじり増し目"
+    ],
+    "zh": [
+     "上针左加针"
+    ]
+   }
+  },
+  {
+   "code": "M1RP",
+   "kind": "STITCH",
+   "names": {
+    "zh": "上针右加针",
+    "en": "make 1 right purlwise"
+   },
+   "templates": {
+    "zh": "M1R-p 上针右加针",
+    "en": "M1R-p"
+   },
+   "def": {
+    "consumes": 0,
+    "produces": 1,
+    "worked": "PURL",
+    "lean": "RIGHT",
+    "source": "BAR",
+    "tbl": true
+   },
+   "aliases": {
+    "en": [
+     "m1rp",
+     "m1r purlwise",
+     "m1r-p"
+    ],
+    "ja": [
+     "裏目の右ねじり増し目"
+    ],
+    "zh": [
+     "上针右加针"
+    ]
+   }
+  },
+  {
+   "code": "YO",
+   "kind": "STITCH",
+   "names": {
+    "zh": "挂针",
+    "en": "yarn over"
+   },
+   "templates": {
+    "zh": "挂针",
+    "en": "yo"
+   },
+   "def": {
+    "consumes": 0,
+    "produces": 1,
+    "worked": "NONE",
+    "source": "YO"
+   },
+   "aliases": {
+    "en": [
+     "yo",
+     "yarn over"
+    ],
+    "ja": [
+     "かけ目"
+    ],
+    "zh": [
+     "挂针"
+    ]
+   }
+  },
+  {
+   "code": "SL",
+   "kind": "STITCH",
+   "names": {
+    "zh": "滑针",
+    "en": "slip"
+   },
+   "templates": {
+    "zh": "滑 {n} 针",
+    "en": "sl{n}"
+   },
+   "def": {
+    "consumes": 1,
+    "produces": 1,
+    "worked": "SLIP"
+   },
+   "aliases": {
+    "en": [
+     "sl",
+     "slip"
+    ],
+    "ja": [
+     "すべり目"
+    ],
+    "zh": [
+     "滑针"
+    ]
+   }
+  },
+  {
+   "code": "SL_WYIF",
+   "kind": "STITCH",
+   "names": {
+    "zh": "线在前滑针",
+    "en": "slip with yarn in front"
+   },
+   "templates": {
+    "zh": "线在前滑 {n} 针",
+    "en": "sl{n} wyif"
+   },
+   "def": {
+    "consumes": 1,
+    "produces": 1,
+    "worked": "SLIP",
+    "yarn": "FRONT"
+   },
+   "aliases": {
+    "en": [
+     "sl wyif",
+     "slip wyif"
+    ],
+    "ja": [
+     "浮き目"
+    ],
+    "zh": [
+     "线在前滑针"
+    ]
+   }
+  },
+  {
+   "code": "SL_WYIB",
+   "kind": "STITCH",
+   "names": {
+    "zh": "线在后滑针",
+    "en": "slip with yarn in back"
+   },
+   "templates": {
+    "zh": "线在后滑 {n} 针",
+    "en": "sl{n} wyib"
+   },
+   "def": {
+    "consumes": 1,
+    "produces": 1,
+    "worked": "SLIP",
+    "yarn": "BACK"
+   },
+   "aliases": {
+    "en": [
+     "sl wyib",
+     "slip wyib"
+    ],
+    "zh": [
+     "线在后滑针"
+    ]
+   }
+  },
+  {
+   "code": "FOLD_JOIN",
+   "kind": "STITCH",
+   "names": {
+    "zh": "双层对折合并",
+    "en": "folded hem join"
+   },
+   "templates": {
+    "zh": "对折合并",
+    "en": "fold-join"
+   },
+   "def": {
+    "consumes": 1,
+    "produces": 1,
+    "worked": "KNIT",
+    "method": "FOLD_HEM"
+   },
+   "aliases": {
+    "en": [
+     "knit together with cast-on loop"
+    ],
+    "ja": [
+     "二つ折りにして2目一度"
+    ],
+    "zh": [
+     "双层领对折合并",
+     "对折合并"
+    ]
+   }
+  },
+  {
+   "code": "CO",
+   "kind": "STITCH",
+   "names": {
+    "zh": "起针",
+    "en": "cast on"
+   },
+   "templates": {
+    "zh": "起 {n} 针",
+    "en": "cast on {n} sts"
+   },
+   "def": {
+    "consumes": 0,
+    "produces": 1,
+    "source": "CAST_ON"
+   },
+   "aliases": {
+    "en": [
+     "co",
+     "cast on"
+    ],
+    "ja": [
+     "作り目"
+    ],
+    "zh": [
+     "起针"
+    ]
+   }
+  },
+  {
+   "code": "CO_LONGTAIL",
+   "kind": "STITCH",
+   "names": {
+    "zh": "长尾起针",
+    "en": "long-tail cast on"
+   },
+   "templates": {
+    "zh": "长尾起针 起 {n} 针",
+    "en": "long-tail cast on {n} sts"
+   },
+   "def": {
+    "consumes": 0,
+    "produces": 1,
+    "source": "CAST_ON",
+    "method": "LONGTAIL"
+   },
+   "aliases": {
+    "en": [
+     "long-tail cast on",
+     "long tail cast on"
+    ],
+    "ja": [
+     "指でかける作り目"
+    ],
+    "zh": [
+     "长尾起针",
+     "手指起针"
+    ]
+   }
+  },
+  {
+   "code": "CO_PROVISIONAL",
+   "kind": "STITCH",
+   "names": {
+    "zh": "别线锁针起针",
+    "en": "provisional cast on"
+   },
+   "templates": {
+    "zh": "别线锁针起 {n} 针",
+    "en": "provisional cast on {n} sts"
+   },
+   "def": {
+    "consumes": 0,
+    "produces": 1,
+    "source": "CAST_ON",
+    "method": "PROVISIONAL"
+   },
+   "aliases": {
+    "en": [
+     "provisional cast on",
+     "crochet chain cast on"
+    ],
+    "ja": [
+     "別鎖の作り目"
+    ],
+    "zh": [
+     "别线锁针起针",
+     "另线起针"
+    ]
+   }
+  },
+  {
+   "code": "CO_CABLE",
+   "kind": "STITCH",
+   "names": {
+    "zh": "起针（cable cast on）",
+    "en": "cable cast on"
+   },
+   "templates": {
+    "zh": "起 {n} 针（cable cast on）",
+    "en": "cable cast on {n} sts"
+   },
+   "def": {
+    "consumes": 0,
+    "produces": 1,
+    "source": "CAST_ON",
+    "method": "CABLE"
+   },
+   "aliases": {
+    "en": [
+     "cable cast on"
+    ],
+    "ja": [
+     "ケーブルキャストオン"
+    ]
+   }
+  },
+  {
+   "code": "PICKUP_EDGE",
+   "kind": "STITCH",
+   "names": {
+    "zh": "挑针",
+    "en": "pick up and knit"
+   },
+   "templates": {
+    "zh": "挑 {n} 针",
+    "en": "pick up and knit {n} sts"
+   },
+   "def": {
+    "consumes": 0,
+    "produces": 1,
+    "source": "EDGE"
+   },
+   "aliases": {
+    "en": [
+     "pick up and knit",
+     "pick up"
+    ],
+    "ja": [
+     "拾い目",
+     "目を拾う"
+    ],
+    "zh": [
+     "挑针"
+    ]
+   }
+  },
+  {
+   "code": "BO",
+   "kind": "BINDOFF",
+   "names": {
+    "zh": "收针",
+    "en": "bind off"
+   },
+   "templates": {
+    "zh": "收针 {n} 针",
+    "en": "bind off {n} sts"
+   },
+   "def": {
+    "method": "STANDARD"
+   },
+   "aliases": {
+    "en": [
+     "bo",
+     "bind off",
+     "cast off"
+    ],
+    "ja": [
+     "伏せ止め"
+    ],
+    "zh": [
+     "收针",
+     "平收"
+    ]
+   }
+  },
+  {
+   "code": "BO_TUBULAR",
+   "kind": "BINDOFF",
+   "names": {
+    "zh": "管状收针",
+    "en": "tubular bind off"
+   },
+   "templates": {
+    "zh": "管状收针（{n} 针）",
+    "en": "tubular bind off {n} sts"
+   },
+   "def": {
+    "method": "TUBULAR"
+   },
+   "aliases": {
+    "en": [
+     "tubular bind off"
+    ],
+    "ja": [
+     "1目ゴム編み止め"
+    ],
+    "zh": [
+     "管状收针",
+     "单罗纹收针"
+    ]
+   }
+  },
+  {
+   "code": "BO_ELASTIC",
+   "kind": "BINDOFF",
+   "names": {
+    "zh": "弹性收针",
+    "en": "elastic bind off"
+   },
+   "templates": {
+    "zh": "弹性收针（{n} 针）",
+    "en": "elastic bind off {n} sts"
+   },
+   "def": {
+    "method": "ELASTIC"
+   },
+   "aliases": {
+    "en": [
+     "elastic bind off",
+     "stretchy bind off"
+    ],
+    "ja": [
+     "エラスティックバインドオフ",
+     "伸縮性のある伏せ止め"
+    ],
+    "zh": [
+     "弹性收针"
+    ]
+   }
+  },
+  {
+   "code": "CUT_DRAW_THROUGH",
+   "kind": "BINDOFF",
+   "names": {
+    "zh": "穿线收口",
+    "en": "cut and draw through"
+   },
+   "templates": {
+    "zh": "剪线，穿过剩余 {n} 针收紧",
+    "en": "cut yarn, draw through remaining {n} sts"
+   },
+   "def": {
+    "method": "DRAW_THROUGH"
+   },
+   "aliases": {
+    "en": [
+     "draw through remaining sts"
+    ],
+    "ja": [
+     "残りの目に通して絞る"
+    ],
+    "zh": [
+     "剪线穿过剩余针目收紧"
+    ]
+   }
+  },
+  {
+   "code": "TRY_ON",
+   "kind": "FINISHING",
+   "names": {
+    "zh": "试穿",
+    "en": "try on"
+   },
+   "templates": {
+    "zh": "试穿",
+    "en": "try on"
+   },
+   "aliases": {
+    "en": [
+     "try on"
+    ],
+    "ja": [
+     "試着"
+    ],
+    "zh": [
+     "试穿"
+    ]
+   }
+  },
+  {
+   "code": "WEAVE_ENDS",
+   "kind": "FINISHING",
+   "names": {
+    "zh": "收线头",
+    "en": "weave in ends"
+   },
+   "templates": {
+    "zh": "收线头",
+    "en": "weave in ends"
+   },
+   "aliases": {
+    "en": [
+     "weave in ends"
+    ],
+    "ja": [
+     "糸始末"
+    ],
+    "zh": [
+     "收线头"
+    ]
+   }
+  },
+  {
+   "code": "BLOCK",
+   "kind": "FINISHING",
+   "names": {
+    "zh": "浸泡定型",
+    "en": "wet blocking"
+   },
+   "templates": {
+    "zh": "浸泡定型",
+    "en": "wet block"
+   },
+   "aliases": {
+    "en": [
+     "block",
+     "wet block"
+    ],
+    "ja": [
+     "ブロッキング",
+     "水通し"
+    ],
+    "zh": [
+     "定型",
+     "浸泡定型"
+    ]
+   }
+  },
+  {
+   "code": "CROCHET_EDGE",
+   "kind": "FINISHING",
+   "names": {
+    "zh": "钩针引拔防拉伸",
+    "en": "crochet slip-stitch edge"
+   },
+   "templates": {
+    "zh": "用钩针在反面引拔一圈防拉伸",
+    "en": "crochet slip stitches along the seam to stabilise"
+   },
+   "aliases": {
+    "en": [
+     "crochet slip stitch edge"
+    ],
+    "ja": [
+     "引き抜き編みして伸びどめ"
+    ],
+    "zh": [
+     "钩针引拔防拉伸"
+    ]
+   }
+  }
+ ],
+ "renderKeys": {
+  "zh": {
+   "SEP": "，",
+   "PM_BOR": "放圈首记号圈 BOR",
+   "SM_BOR": "移过圈首记号圈 BOR",
+   "TAG_SADDLE": "〔鞍〕"
+  },
+  "en": {
+   "SEP": ", ",
+   "PM_BOR": "pm BOR",
+   "SM_BOR": "sm BOR",
+   "TAG_SADDLE": " [saddle]"
+  }
+ }
+}

@@ -6,8 +6,13 @@ You convert a knitting pattern into a canonical JSON IR. You are a PARSER, not a
    - If the pattern says "knit to marker / to end / to the gap / to 2 sts before marker",
      use `until` (+ `stopBefore`) and leave `count` out. Java computes the number.
    - If the pattern states a number of repeats ("repeat 5 times", "×8"), copy it.
-2. Use only the codes from the glossary. If a term is not in the glossary, emit
-   `{"code": "UNKNOWN", "raw": "<the original words>"}`. Never guess.
+2. Use only the codes from the glossary (match by any of the listed names, in any language). If a technique is
+   not in the glossary, emit `{"code": "UNKNOWN", "raw": "<the technique's name exactly as written, nothing else>",
+   "count": <times, if stated>, "attrs": {"context": "<the whole sentence>"}}` — e.g. raw "kfb", raw "右上3目交差".
+   The system will learn it. Never guess a code, never put a whole sentence in raw.
+6. Copy every stitch count the pattern states ("(48 sts)", "合計274目になる", "共 36 针"): a count stated at the end
+   of a step → `statedEndSts`; a count stated in the middle of a row → `{"code":"VERIFY_COUNT","count":N}` there.
+   Only copy totals that are written; never compute one. Do not copy "N sts increased/decreased" (that is a change).
 3. Keep free text (designer notes, "try on before separating", measurements advice) in the source
    language in `noteSrc` / `titleSrc` / `nameSrc`. Do not translate.
 4. Output exactly one JSON object matching the schema below. No markdown fences, no comments.
@@ -36,6 +41,7 @@ type Step = {
   groupCount?: number;             // REPEAT only: how many times the group of rows repeats
   rowsPerGroup?: number;           // REPEAT only: rows in one group (Java computes total)
   rows: Row[];                     // row templates, cycled: row i uses rows[i % rows.length]
+  statedEndSts?: number;           // stitch count the pattern states after this step, copied
 };
 type Row = { side?: "RS" | "WS"; nameSrc?: string; segments: Segment[] };
 type Segment = {
@@ -44,7 +50,7 @@ type Segment = {
   until?: "MARKER" | "BOR" | "GAP" | "END";
   stopBefore?: number;             // "knit to 2 sts before marker" → until MARKER, stopBefore 2
   marker?: string;                 // name for PM/SM/RM when the pattern names markers (use "BOR" for beginning of round)
-  attrs?: { tag?: "SADDLE"; piece?: string }; // piece: name of a held piece (HOLD / PUT_ASIDE / PICKUP_HELD / JOIN_PIECE)
+  attrs?: { tag?: "SADDLE"; piece?: string; context?: string }; // piece: held piece name; context: sentence of an UNKNOWN
   raw?: string;                    // required for UNKNOWN
   children?: Segment[];            // REPEAT only
 };

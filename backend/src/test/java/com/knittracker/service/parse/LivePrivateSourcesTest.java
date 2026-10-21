@@ -10,6 +10,7 @@ import com.knittracker.service.count.ExpectedCounts;
 import com.knittracker.service.llm.GeminiClient;
 import com.knittracker.service.parse.PatternParser.ParseOptions;
 import com.knittracker.service.parse.PatternParser.SourceFile;
+import com.knittracker.service.technique.TechniqueLibrary;
 import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -53,7 +54,7 @@ class LivePrivateSourcesTest {
         try {
             PatternParser.ParsedPattern parsed = parser.parse(
                     new SourceFile(source.getFileName().toString(), mime, Files.readAllBytes(source)),
-                    SourceType.TEXT_PDF, new ParseOptions(null));
+                    SourceType.TEXT_PDF, new ParseOptions(null), TechniqueLibrary.builtin());
             Files.writeString(out, mapper.enable(SerializationFeature.INDENT_OUTPUT).writeValueAsString(parsed.ir()));
             System.out.println(expected.name() + ": parsed in " + parsed.attempts() + " attempt(s) -> " + out);
             problems = expected.check(parsed.ir());

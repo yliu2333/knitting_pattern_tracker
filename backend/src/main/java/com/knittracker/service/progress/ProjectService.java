@@ -2,7 +2,8 @@ package com.knittracker.service.progress;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.knittracker.dao.GlossaryDao;
+import com.knittracker.dao.TechniqueDao;
+import com.knittracker.service.technique.TechniqueLibrary;
 import com.knittracker.dao.PatternReadDao;
 import com.knittracker.dao.PatternReadDao.StoredPattern;
 import com.knittracker.dao.ProjectDao;
@@ -42,16 +43,16 @@ public class ProjectService {
     private final CurrentUser currentUser;
     private final ProjectDao projects;
     private final PatternReadDao patterns;
-    private final GlossaryDao glossaries;
+    private final TechniqueDao techniques;
     private final ObjectMapper mapper;
 
     public ProjectService(UserScope scope, CurrentUser currentUser, ProjectDao projects, PatternReadDao patterns,
-                          GlossaryDao glossaries, ObjectMapper mapper) {
+                          TechniqueDao techniques, ObjectMapper mapper) {
+        this.techniques = techniques;
         this.scope = scope;
         this.currentUser = currentUser;
         this.projects = projects;
         this.patterns = patterns;
-        this.glossaries = glossaries;
         this.mapper = mapper;
     }
 
@@ -111,15 +112,16 @@ public class ProjectService {
         return scope.asCurrentUser(() -> {
             ProjectRow p = projects.find(projectId).orElseThrow(() -> new NotFoundException("project"));
             StoredPattern stored = patterns.load(p.patternId()).orElseThrow(() -> new NotFoundException("pattern"));
-            PatternPlan plan = StitchSimulator.simulate(stored.ir());
+            TechniqueLibrary library = techniques.load();
+            PatternPlan plan = StitchSimulator.simulate(stored.ir(), library);
             int[] at = locate(stored, stepId);
             StepIr st = stored.ir().sections().get(at[0]).steps().get(at[1]);
             List<RoundPlan> rounds = plan.sections().get(at[0]).get(at[1]).rounds();
             if (round < 0 || round >= rounds.size()) throw new NotFoundException("round");
             RoundPlan rp = rounds.get(round);
             RowIr row = st.rows().get(rp.rowOrd());
-            Glossary g = glossaries.load(lang);
-            if (g.templates().isEmpty()) throw new IllegalArgumentException("unsupported language: " + lang);
+            if (!library.supportsLanguage(lang)) throw new IllegalArgumentException("unsupported language: " + lang);
+            Glossary g = Glossary.from(library, lang);
             return new RoundView(stepId, round, st.kind() == StepIr.Kind.CHECKPOINT ? Integer.valueOf(1) : st.total(),
                     row.nameSrc(), row.side() == null ? null : row.side().name(),
                     InstructionRenderer.render(rp.segments(), g), rp.stsAfter(), rp.sectionsAtStart(), st.noteSrc());
@@ -157,7 +159,7 @@ public class ProjectService {
     private TrackerView view(UUID projectId) {
         ProjectRow p = projects.find(projectId).orElseThrow(() -> new NotFoundException("project"));
         StoredPattern stored = patterns.load(p.patternId()).orElseThrow(() -> new NotFoundException("pattern"));
-        PatternPlan plan = StitchSimulator.simulate(stored.ir());
+        PatternPlan plan = StitchSimulator.simulate(stored.ir(), techniques.load());
         ProgressRules rules = rules(p);
         Map<UUID, String> notes = projects.notes(projectId);
         Map<UUID, ProgressRules.StepMeta> metas = new java.util.HashMap<>();

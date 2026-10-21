@@ -10,6 +10,11 @@ import com.knittracker.service.count.StitchSimulator;
 import com.knittracker.service.llm.LlmClient;
 import com.knittracker.service.llm.LlmClient.Attachment;
 import com.knittracker.service.llm.LlmException;
+import com.knittracker.service.technique.GlossaryPrompt;
+import com.knittracker.service.technique.LearnedAlias;
+import com.knittracker.service.technique.Technique;
+import com.knittracker.service.technique.TechniqueLearner;
+import com.knittracker.service.technique.TechniqueLibrary;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -36,12 +41,14 @@ public class TextPatternParser implements PatternParser {
     private final ObjectMapper strict;
     private final String systemPrompt;
     private final String version;
+    private final TechniqueLearner learner;
 
     public TextPatternParser(LlmClient llm, ObjectMapper mapper, @Value("${app.llm.gemini.model}") String model) {
         this.llm = llm;
         this.strict = mapper.copy().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);
-        this.systemPrompt = resource("llm/parse-system.md") + "\n\n" + resource("llm/glossary.md");
-        this.version = "text-v2/" + model;
+        this.systemPrompt = resource("llm/parse-system.md");
+        this.version = "text-v3/" + model;
+        this.learner = new TechniqueLearner(llm, mapper);
     }
 
     @Override
@@ -55,7 +62,7 @@ public class TextPatternParser implements PatternParser {
     }
 
     @Override
-    public ParsedPattern parse(SourceFile file, SourceType type, ParseOptions options) {
+    public ParsedPattern parse(SourceFile file, SourceType type, ParseOptions options, TechniqueLibrary library) {
         List<Attachment> attachments = new ArrayList<>();
         String patternText = null;
         if (file.mimeType().startsWith("text/")) {
@@ -68,11 +75,15 @@ public class TextPatternParser implements PatternParser {
 
         List<String> errors = List.of();
         String previous = null;
+        TechniqueLibrary lib = library;
+        List<Technique> learned = new ArrayList<>();
+        List<LearnedAlias> aliases = new ArrayList<>();
+        String system = systemPrompt + "\n\n# Glossary (the only codes you may use)\n" + GlossaryPrompt.of(library);
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             String prompt = userPrompt(type, options, patternText, previous, errors);
             String raw;
             try {
-                raw = llm.completeJson(systemPrompt, prompt, attachments);
+                raw = llm.completeJson(system, prompt, attachments);
             } catch (LlmException e) {
                 throw new ParseFailedException(List.of(e.getMessage()), previous);
             }
@@ -86,9 +97,16 @@ public class TextPatternParser implements PatternParser {
             }
             errors = IrValidator.validate(ir);
             if (errors.isEmpty()) {
+                // Terms the library doesn't know yet: learn them (aliases first, then one define call).
+                TechniqueLearner.Result learnt = learner.learn(ir, lib);
+                ir = learnt.ir();
+                lib = learnt.library();
+                learned.addAll(learnt.learned());
+                aliases.addAll(learnt.aliases());
                 try {
-                    StitchSimulator.simulate(ir);
-                    return new ParsedPattern(ir, attempt);
+                    StitchSimulator.simulate(ir, lib);
+                    return new ParsedPattern(ir, attempt, List.copyOf(learned), List.copyOf(aliases),
+                            learnt.unsupported());
                 } catch (StitchSimulator.SimulationException e) {
                     errors = List.of("stitch simulation failed at " + e.getMessage());
                 }

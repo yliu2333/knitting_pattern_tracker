@@ -12,7 +12,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.knittracker.service.technique.Technique;
+import com.knittracker.service.technique.TechniqueLibrary;
 
 /**
  * Knits the IR stitch by stitch to turn "knit to marker" into literal counts. Pure and deterministic:
@@ -29,13 +31,17 @@ public final class StitchSimulator {
 
     private static final int MAX_REPEAT = 10_000;
 
-    /** Codes that don't touch stitches. */
-    private static final Set<String> NO_OPS = Set.of("TRY_ON", "WEAVE_ENDS", "BLOCK", "CROCHET_EDGE", "UNKNOWN");
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private StitchSimulator() {}
 
     public static PatternPlan simulate(PatternIr ir) {
-        return new Run().simulate(ir);
+        return simulate(ir, TechniqueLibrary.builtin());
+    }
+
+    /** Non-primitive codes (K2TOG, CO_*, BO_*, learned ones…) are interpreted from the library's definitions. */
+    public static PatternPlan simulate(PatternIr ir, TechniqueLibrary library) {
+        return new Run(library).simulate(ir);
     }
 
     private sealed interface Token permits Stitch, Marker {}
@@ -56,6 +62,7 @@ public final class StitchSimulator {
     }
 
     private static final class Run {
+        final TechniqueLibrary library;
         Piece active = new Piece();
         Piece main;
         /** Pieces on hold by name, in the order they were put aside (unnamed holds get HELD_1, HELD_2…). */
@@ -69,6 +76,10 @@ public final class StitchSimulator {
         boolean holdGap;
         boolean gapBeforeTurn;
         boolean switchedPiece;
+
+        Run(TechniqueLibrary library) {
+            this.library = library;
+        }
 
         PatternPlan simulate(PatternIr ir) {
             List<List<StepPlan>> sections = new ArrayList<>();
@@ -104,6 +115,9 @@ public final class StitchSimulator {
             int end = active.stitches();
             // A step that picks up held stitches (or returns to the body) starts on that piece.
             if (switchedPiece) start = end;
+            if (st.statedEndSts() != null && st.statedEndSts() != end) {
+                throw fail("the pattern says this step ends with " + st.statedEndSts() + " sts, but working it gives " + end);
+            }
             if (st.total() == null && st.kind() != StepIr.Kind.CHECKPOINT && end != start) {
                 throw fail("open-ended step changes stitch count " + start + " -> " + end);
             }
@@ -156,18 +170,6 @@ public final class StitchSimulator {
                     for (int i = 0; i < n; i++) work(1, false);
                     yield n == 0 ? List.of() : List.of(resolved(g, n));
                 }
-                case "K2TOG", "SSK", "P2TOG", "SSP" -> {
-                    for (int i = 0; i < times; i++) work(2, false);
-                    yield List.of(resolved(g, times));
-                }
-                case "M1L", "M1R", "M1LP", "M1RP", "YO" -> {
-                    for (int i = 0; i < times; i++) insert(new Stitch(false));
-                    yield List.of(resolved(g, times));
-                }
-                case "SL_WYIF", "SL_WYIB", "FOLD_JOIN", "SL" -> {
-                    for (int i = 0; i < times; i++) work(1, false);
-                    yield List.of(resolved(g, times));
-                }
                 case "DS" -> {
                     work(1, true);
                     yield List.of(resolved(g, 1));
@@ -203,11 +205,6 @@ public final class StitchSimulator {
                 case "JOIN_ROUND" -> {
                     join();
                     yield List.of(resolved(g, 0));
-                }
-                case "CO", "CO_LONGTAIL", "CO_PROVISIONAL", "CO_CABLE", "PICKUP_EDGE" -> {
-                    if (g.count() == null) throw fail(g.code() + " needs a count");
-                    for (int i = 0; i < g.count(); i++) insert(new Stitch(false));
-                    yield List.of(resolved(g, g.count()));
                 }
                 case "HOLD" -> {
                     int n = g.count() != null ? g.count() : stitchesAhead(g.until()) - stopBefore(g);
@@ -246,7 +243,38 @@ public final class StitchSimulator {
                     switchedPiece = true;
                     yield List.of(resolved(g, 0));
                 }
-                case "BO", "BO_TUBULAR", "BO_ELASTIC", "CUT_DRAW_THROUGH" -> {
+                case "VERIFY_COUNT" -> {
+                    int n = active.stitches();
+                    // A count copied from the pattern ("36 sts") must match what the knitting gives.
+                    if (g.count() != null && g.count() != n) {
+                        throw fail("the pattern says " + g.count() + " sts here, but working it gives " + n);
+                    }
+                    yield List.of(resolved(g, n));
+                }
+                case SegmentIr.UNKNOWN -> List.of(resolved(g, 0));
+                default -> fromLibrary(g, times);
+            };
+        }
+
+        /** STITCH: consumes → produces, `times` times; BINDOFF empties the needle; MACRO expands; FINISHING no-op. */
+        List<ResolvedSegment> fromLibrary(SegmentIr g, int times) {
+            Technique t = library.byCode(g.code()).orElseThrow(() -> fail("unknown technique code " + g.code()));
+            return switch (t.kind()) {
+                case STITCH -> {
+                    String source = t.def() == null ? "" : t.def().path("source").asText("");
+                    if (g.count() == null && (source.equals("CAST_ON") || source.equals("EDGE"))) {
+                        throw fail(g.code() + " needs a count");
+                    }
+                    for (int i = 0; i < times; i++) {
+                        if (t.consumes() == 0) {
+                            for (int k = 0; k < t.produces(); k++) insert(new Stitch(false));
+                        } else {
+                            work(t.consumes(), t.produces());
+                        }
+                    }
+                    yield List.of(resolved(g, times));
+                }
+                case BINDOFF -> {
                     // Piece finished: nothing (not even markers) stays on the needle.
                     int n = active.stitches();
                     active.ring.clear();
@@ -255,12 +283,23 @@ public final class StitchSimulator {
                     active.joined = false;
                     yield List.of(resolved(g, n));
                 }
-                case "VERIFY_COUNT" -> List.of(resolved(g, active.stitches()));
-                default -> {
-                    if (!NO_OPS.contains(g.code())) throw fail("unsupported code " + g.code());
-                    yield List.of(resolved(g, 0));
+                case FINISHING -> List.of(resolved(g, 0));
+                case MACRO -> {
+                    List<SegmentIr> steps = macroSteps(t);
+                    List<ResolvedSegment> out = new ArrayList<>();
+                    for (int i = 0; i < times; i++) out.addAll(run(steps));
+                    yield out;
                 }
+                case PRIMITIVE -> throw fail("primitive " + g.code() + " is not handled");
             };
+        }
+
+        List<SegmentIr> macroSteps(Technique t) {
+            try {
+                return List.of(MAPPER.treeToValue(t.def().get("steps"), SegmentIr[].class));
+            } catch (Exception e) {
+                throw fail("macro " + t.code() + " has invalid steps");
+            }
         }
 
         /**
@@ -363,8 +402,16 @@ public final class StitchSimulator {
             return i < 0 ? null : active.ring.get(i);
         }
 
-        /** Consumes {@code consume} stitches and produces one (a double stitch if {@code dbl}). */
         void work(int consume, boolean dbl) {
+            work(consume, 1, dbl);
+        }
+
+        void work(int consume, int produce) {
+            work(consume, produce, false);
+        }
+
+        /** Consumes {@code consume} stitches and produces {@code produce} (double stitches if {@code dbl}). */
+        void work(int consume, int produce, boolean dbl) {
             int idx = -1;
             for (int c = 0; c < consume; c++) {
                 skipSilentMarkers();
@@ -376,8 +423,8 @@ public final class StitchSimulator {
                 active.ring.remove(idx);
                 active.pos = idx;
             }
-            active.ring.add(idx, new Stitch(dbl));
-            if (active.dir == 1) active.pos = idx + 1;
+            for (int k = 0; k < produce; k++) active.ring.add(idx, new Stitch(dbl));
+            if (active.dir == 1) active.pos = idx + produce;
             else active.pos = idx;
         }
 
