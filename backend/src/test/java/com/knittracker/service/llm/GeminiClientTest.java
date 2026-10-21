@@ -29,7 +29,7 @@ class GeminiClientTest {
 
             data: {"candidates":[{"content":{"parts":[{"text":"{\\"a\\":"}]}}]}
 
-            data: {"candidates":[{"content":{"parts":[{"text":"1}"}]}}]}
+            data: {"candidates":[{"content":{"parts":[{"text":"1}"}]},"finishReason":"STOP"}]}
 
             """;
 
@@ -87,5 +87,37 @@ class GeminiClientTest {
         reply = "{\"error\":\"quota for SECRET project\"}";
         assertThatThrownBy(() -> client().completeJson("s", "u", List.of()))
                 .isInstanceOf(LlmException.class).hasMessage("Gemini HTTP 429");
+    }
+
+    @Test
+    void anErrorEventInsideA200StreamFailsInsteadOfReturningThePartialAnswer() {
+        reply = """
+                data: {"candidates":[{"content":{"parts":[{"text":"{\\"a\\":"}]}}]}
+
+                data: {"error":{"code":503,"message":"high demand for SECRET","status":"UNAVAILABLE"}}
+
+                """;
+        assertThatThrownBy(() -> client().completeJson("s", "u", List.of()))
+                .isInstanceOf(LlmException.class).hasMessage("Gemini HTTP 503");
+    }
+
+    @Test
+    void aStreamCutOffBeforeFinishReasonFails() {
+        reply = """
+                data: {"candidates":[{"content":{"parts":[{"text":"{\\"a\\":"}]}}]}
+
+                """;
+        assertThatThrownBy(() -> client().completeJson("s", "u", List.of()))
+                .isInstanceOf(LlmException.class).hasMessage("Gemini stream ended early: null");
+    }
+
+    @Test
+    void hittingTheOutputLimitFails() {
+        reply = """
+                data: {"candidates":[{"content":{"parts":[{"text":"{\\"a\\":"}]},"finishReason":"MAX_TOKENS"}]}
+
+                """;
+        assertThatThrownBy(() -> client().completeJson("s", "u", List.of()))
+                .isInstanceOf(LlmException.class).hasMessage("Gemini stream ended early: MAX_TOKENS");
     }
 }
