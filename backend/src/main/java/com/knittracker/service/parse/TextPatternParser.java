@@ -22,33 +22,42 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import org.springframework.beans.factory.annotation.Value;
+import com.knittracker.service.llm.LlmTiers;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Written patterns in any language (PDF, photo or plain text) → IR via ONE logical LLM call.
+ * Written patterns in any language (PDF, photo or plain text) → IR.
  * Output is checked by Jackson, {@link IrValidator} and {@link StitchSimulator}; on failure the
- * errors are sent back for a corrected answer (each retry is a fresh, stateless call).
+ * errors are sent back for a corrected answer (each retry is a fresh, stateless call). Models are tried
+ * cheapest first: the next one is used only when a model can't produce a passing IR in its attempts.
  */
 @Component
 public class TextPatternParser implements PatternParser {
 
+    /** Attempts per model: a lone model gets 3; in a chain each gets 2 before handing over. */
     static final int MAX_ATTEMPTS = 3;
+    static final int ATTEMPTS_PER_TIER = 2;
     static final Set<String> ATTACHABLE = Set.of("application/pdf", "image/png", "image/jpeg", "image/webp",
             "image/heic", "image/heif");
 
-    private final LlmClient llm;
+    private final LlmTiers tiers;
+    private final ObjectMapper mapper;
     private final ObjectMapper strict;
     private final String systemPrompt;
     private final String version;
-    private final TechniqueLearner learner;
 
-    public TextPatternParser(LlmClient llm, ObjectMapper mapper, @Value("${app.llm.gemini.model}") String model) {
-        this.llm = llm;
+    @Autowired
+    public TextPatternParser(LlmTiers tiers, ObjectMapper mapper) {
+        this.tiers = tiers;
+        this.mapper = mapper;
         this.strict = mapper.copy().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);
         this.systemPrompt = resource("llm/parse-system.md");
-        this.version = "text-v3/" + model;
-        this.learner = new TechniqueLearner(llm, mapper);
+        this.version = "text-v3/" + String.join("+", tiers.tiers().stream().map(LlmTiers.Tier::model).toList());
+    }
+
+    public TextPatternParser(LlmClient llm, ObjectMapper mapper, String model) {
+        this(LlmTiers.single(model, llm), mapper);
     }
 
     @Override
@@ -63,6 +72,26 @@ public class TextPatternParser implements PatternParser {
 
     @Override
     public ParsedPattern parse(SourceFile file, SourceType type, ParseOptions options, TechniqueLibrary library) {
+        int attempts = tiers.tiers().size() == 1 ? MAX_ATTEMPTS : ATTEMPTS_PER_TIER;
+        List<String> failures = new ArrayList<>();
+        ParseFailedException last = null;
+        for (LlmTiers.Tier tier : tiers.tiers()) {
+            try {
+                return parseWith(tier, attempts, file, type, options, library);
+            } catch (ParseFailedException e) {
+                // Learned techniques of a failed model are dropped with it; the next model starts clean.
+                failures.add(tier.model() + ": " + String.join("; ", e.errors()));
+                last = e;
+            }
+        }
+        if (tiers.tiers().size() == 1) throw last;
+        throw new ParseFailedException(failures, last.lastOutput());
+    }
+
+    private ParsedPattern parseWith(LlmTiers.Tier tier, int maxAttempts, SourceFile file, SourceType type,
+                                    ParseOptions options, TechniqueLibrary library) {
+        LlmClient llm = tier.client();
+        TechniqueLearner learner = new TechniqueLearner(llm, mapper);
         List<Attachment> attachments = new ArrayList<>();
         String patternText = null;
         if (file.mimeType().startsWith("text/")) {
@@ -79,7 +108,7 @@ public class TextPatternParser implements PatternParser {
         List<Technique> learned = new ArrayList<>();
         List<LearnedAlias> aliases = new ArrayList<>();
         String system = systemPrompt + "\n\n# Glossary (the only codes you may use)\n" + GlossaryPrompt.of(library);
-        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             String prompt = userPrompt(type, options, patternText, previous, errors);
             String raw;
             try {
@@ -106,7 +135,7 @@ public class TextPatternParser implements PatternParser {
                 try {
                     StitchSimulator.simulate(ir, lib);
                     return new ParsedPattern(ir, attempt, List.copyOf(learned), List.copyOf(aliases),
-                            learnt.unsupported());
+                            learnt.unsupported(), tier.model());
                 } catch (StitchSimulator.SimulationException e) {
                     errors = List.of("stitch simulation failed at " + e.getMessage());
                 }

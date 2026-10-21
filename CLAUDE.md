@@ -28,7 +28,7 @@ source (any lang) --[LLM parse]--> Canonical IR (language-neutral) --[determinis
 - Backend: Java 21, Spring Boot 3, PostgreSQL + pgvector (JSONB for extensible structure), Flyway migrations
 - iOS: SwiftUI
 - Auth: Sign in with Apple → backend-issued JWT
-- LLM: free tier (Gemini Flash first; Groq as fallback), behind an interface
+- LLM: Gemini behind `LlmClient`; **model chain cheapest first** (`LlmTiers`): a parse escalates to the next model only when the cheaper one can't produce an IR that passes validation + simulation in 2 attempts (or is unavailable). Cost is ~$0.04 (Flash-Lite) to ~$0.10 (Flash) per pattern; tracking is free
 - Repo layout: `/backend`, `/ios`, `/fixtures` (public sample IR, written by us)
 
 ## Fixtures & copyright (this repo is public)
@@ -68,7 +68,7 @@ ir/         canonical IR records (PatternIr → SectionIr → StepIr → RowIr �
 ## Local dev
 - `cd backend && docker compose up -d` (Postgres+pgvector; `db/init` creates app role `kpt_app`). Flyway migrates as owner `kpt_owner`; the app connects as `kpt_app`.
 - `./gradlew test` (Testcontainers; needs Docker).
-- Env: `JWT_SECRET` (≥ 32 bytes, required), `GEMINI_API_KEY` (may be empty when an egress proxy injects `x-goog-api-key`, e.g. a Claude cloud network secret for `generativelanguage.googleapis.com`), `GEMINI_MODEL` (default gemini-3.8-flash; 2.5-flash is closed to new keys), `GEMINI_THINKING_LEVEL` (low|medium|high, empty = model default; use `low` behind the Claude cloud proxy, which drops responses with no byte in ~30s), `APPLE_CLIENT_IDS` (iOS bundle id(s); empty = Apple login off), `DB_URL`, `DB_APP_USER/PASSWORD`, `DB_OWNER_USER/PASSWORD`.
+- Env: `JWT_SECRET` (≥ 32 bytes, required), `GEMINI_API_KEY` (may be empty when an egress proxy injects `x-goog-api-key`, e.g. a Claude cloud network secret for `generativelanguage.googleapis.com`), `GEMINI_MODELS` (comma list, cheapest first; default `gemini-3.1-flash-lite,gemini-3.8-flash`; 2.5-flash is closed to new keys), `GEMINI_THINKING_LEVEL` (low|medium|high, empty = model default; use `low` behind the Claude cloud proxy, which drops responses with no byte in ~30s), `APPLE_CLIENT_IDS` (iOS bundle id(s); empty = Apple login off), `DB_URL`, `DB_APP_USER/PASSWORD`, `DB_OWNER_USER/PASSWORD`.
 
 ## Auth
 - iOS: Sign in with Apple with `request.nonce = sha256(rawNonce)` → `POST /api/auth/apple {identityToken, nonce: rawNonce}` → `{userId, accessToken (1h), expiresIn, refreshToken (60d)}`
@@ -146,7 +146,7 @@ Root cause of that class of bug: isolation relied on every query *remembering* t
 4. SwiftUI tracker reading the API (port prototype UX: current step, n/N, segments, next step, undo)
 5. Sign in with Apple + JWT — ✅ backend; iOS side comes with milestone 4
 6. TextPatternParser: LLM prompt + glossary + JSON schema validation + retry; test on real EN/JP/CN patterns
-   - ✅ pipeline: `resources/llm/parse-system.md` + `glossary.md` → Gemini (JSON mode, SSE streaming, key in header) → strict Jackson → IrNormalizer (Java does REPEAT totals, inch→cm) → IrValidator → StitchSimulator; errors fed back, max 3 attempts. Parser version `text-v3/<model>` is part of the cache key: bump it when the prompt changes.
+   - ✅ pipeline: `resources/llm/parse-system.md` + `glossary.md` → Gemini (JSON mode, SSE streaming, key in header) → strict Jackson → IrNormalizer (Java does REPEAT totals, inch→cm) → IrValidator → StitchSimulator; errors fed back, max 3 attempts. Parser version `text-v3/<model+model…>` (the whole chain) is part of the cache key: bump it when the prompt changes.
    - ⏳ live quality check: `GEMINI_LIVE=1 GEMINI_THINKING_LEVEL=low ./gradlew test --tests '*Live*'`; real patterns go in the private repo `sources/` with an `expected/` file
    - **Free tier = 20 requests/day per model** (one parse can use up to 6). Never loop retries on 503/429: run once, stop and report. Check offline first by feeding a saved raw output (private `parsed/`) through IrNormalizer → IrValidator → StitchSimulator.
    - Sheer na Knit (JA) first live run: 3/3 attempts failed on IR gaps (armhole split/rejoin, edge pick-up, "to N before BOR"). Fixed in simulator + prompt (`text-v2`).

@@ -8,11 +8,9 @@ import com.knittracker.ir.PatternIr;
 import com.knittracker.ir.PatternIr.SourceType;
 import com.knittracker.service.count.PatternPlan;
 import com.knittracker.service.count.StitchSimulator;
-import com.knittracker.service.llm.GeminiClient;
 import com.knittracker.service.parse.PatternParser.ParseOptions;
 import com.knittracker.service.parse.PatternParser.SourceFile;
 import com.knittracker.service.technique.TechniqueLibrary;
-import java.net.http.HttpClient;
 import java.nio.file.Files;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -27,19 +25,16 @@ class LiveGeminiParseTest {
     @Test
     void englishTextHatParsesToTheSameStitchCountsAsTheHandWrittenIr() throws Exception {
         ObjectMapper mapper = new ObjectMapper();
-        String model = System.getenv().getOrDefault("GEMINI_MODEL", "gemini-3.8-flash");
-        var llm = new GeminiClient(HttpClient.newHttpClient(), mapper,
-                "https://generativelanguage.googleapis.com", model, System.getenv().getOrDefault("GEMINI_API_KEY", ""),
-                System.getenv().getOrDefault("GEMINI_THINKING_LEVEL", ""));
+        var tiers = LiveTiers.fromEnv(mapper);
         byte[] source = Files.readAllBytes(Fixtures.PUBLIC_DIR.resolve("sample-hat.source.txt"));
 
-        PatternParser.ParsedPattern parsed = new TextPatternParser(llm, mapper, model)
+        PatternParser.ParsedPattern parsed = new TextPatternParser(tiers, mapper)
                 .parse(new SourceFile("hat.txt", "text/plain", source), SourceType.TEXT_PDF, new ParseOptions(null), TechniqueLibrary.builtin());
 
         PatternIr expected = Fixtures.read(Fixtures.PUBLIC_DIR.resolve("sample-hat.ir.json"));
         assertThat(ends(parsed.ir())).isEqualTo(ends(expected));
         assertThat(parsed.ir().sourceLang()).isEqualTo("en");
-        System.out.println("parsed in " + parsed.attempts() + " attempt(s)");
+        System.out.println("parsed by " + parsed.model() + " in " + parsed.attempts() + " attempt(s)");
     }
 
     static java.util.List<Integer> ends(PatternIr ir) {
