@@ -38,7 +38,7 @@ source (any lang) --[LLM parse]--> Canonical IR (language-neutral) --[determinis
 - IR simulation semantics (StitchSimulator):
   - a row/round starting at BOR slips it implicitly; `K until END` crossing markers is split into literal pieces (`k28, sm, k9…`); inside `REPEAT until END` markers are slipped silently
   - `until END` = BOR on a joined round, the edge on a flat piece; `stopBefore` works with MARKER/BOR/END and on `REPEAT until …`
-  - a CHECKPOINT on a joined round is worked as a round; a ROUND step on an unjoined piece joins it
+  - a CHECKPOINT on a joined round is worked as a round; a ROUND step on an unjoined piece joins it (turning to the RS first if a flat piece ended on a WS row); if the piece has no BOR yet, that first round builds the ring (front + cast-on + back + cast-on + pm BOR) and the piece is joined after it
   - pieces: `HOLD` (count/until, `attrs.piece` name; markers in the span are dropped) keeps the round joined unless the next action is `TURN`, which opens the round there (flat piece, edge markers dropped); flat ROW steps turn at the edge implicitly; `PUT_ASIDE` sets the whole piece aside; `PICKUP_HELD` makes a held piece the working piece; `JOIN_PIECE` puts held sts on the left needle mid-row; `RESUME_MAIN` returns to the body; `PM BOR` moves an existing BOR
   - `PICKUP_EDGE`, `CO_*` add sts; `BO*` empties the needle (markers too)
 
@@ -148,7 +148,9 @@ Root cause of that class of bug: isolation relied on every query *remembering* t
 6. TextPatternParser: LLM prompt + glossary + JSON schema validation + retry; test on real EN/JP/CN patterns
    - ✅ pipeline: `resources/llm/parse-system.md` + `glossary.md` → Gemini (JSON mode, SSE streaming, key in header) → strict Jackson → IrNormalizer (Java does REPEAT totals, inch→cm) → IrValidator → StitchSimulator; errors fed back, max 3 attempts. Parser version `text-v3/<model>` is part of the cache key: bump it when the prompt changes.
    - ⏳ live quality check: `GEMINI_LIVE=1 GEMINI_THINKING_LEVEL=low ./gradlew test --tests '*Live*'`; real patterns go in the private repo `sources/` with an `expected/` file
-   - Sheer na Knit (JA) first live run: 3/3 attempts failed on IR gaps (armhole split/rejoin, edge pick-up, "to N before BOR"). Fixed in simulator + prompt (`text-v2`); hand-written IR now reaches all stated counts. Next: re-run live.
+   - **Free tier = 20 requests/day per model** (one parse can use up to 6). Never loop retries on 503/429: run once, stop and report. Check offline first by feeding a saved raw output (private `parsed/`) through IrNormalizer → IrValidator → StitchSimulator.
+   - Sheer na Knit (JA) first live run: 3/3 attempts failed on IR gaps (armhole split/rejoin, edge pick-up, "to N before BOR"). Fixed in simulator + prompt (`text-v2`).
+   - Second run (`text-v3`, gemini-3.6-flash): 78 → 274 → 136 → 136 correct; failed at the flat → round rejoin (front ended on WS). Simulator now turns + defers the join. Next: re-run once quota resets.
 7. GaugeAdapter: rescale counts with constraints (ribbing parity, repeat multiples, even decrease spacing, short-row depth by row gauge)
 8. Later: JP knit symbol charts → crochet charts
 
