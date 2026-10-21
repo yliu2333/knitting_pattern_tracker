@@ -20,9 +20,10 @@ public interface PatternParser {
      * @param learned    techniques the pattern taught the system (new for this user)
      * @param aliases    new names for techniques already in the library
      * @param unsupported terms that could not be defined; they stay UNKNOWN (shown as raw text)
+     * @param model      the model whose output was accepted
      */
     record ParsedPattern(PatternIr ir, int attempts, List<Technique> learned, List<LearnedAlias> aliases,
-                         List<String> unsupported) {}
+                         List<String> unsupported, String model) {}
 
     boolean supports(SourceType type, Craft craft);
 

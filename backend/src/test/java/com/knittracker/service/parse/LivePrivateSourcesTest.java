@@ -7,11 +7,9 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.knittracker.ir.Fixtures;
 import com.knittracker.ir.PatternIr.SourceType;
 import com.knittracker.service.count.ExpectedCounts;
-import com.knittracker.service.llm.GeminiClient;
 import com.knittracker.service.parse.PatternParser.ParseOptions;
 import com.knittracker.service.parse.PatternParser.SourceFile;
 import com.knittracker.service.technique.TechniqueLibrary;
-import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -39,11 +37,8 @@ class LivePrivateSourcesTest {
     @MethodSource("sources")
     void parsedPatternReachesEveryStatedCount(ExpectedCounts expected) throws Exception {
         ObjectMapper mapper = new ObjectMapper();
-        String model = System.getenv().getOrDefault("GEMINI_MODEL", "gemini-3.8-flash");
-        var llm = new GeminiClient(HttpClient.newHttpClient(), mapper, "https://generativelanguage.googleapis.com",
-                model, System.getenv().getOrDefault("GEMINI_API_KEY", ""),
-                System.getenv().getOrDefault("GEMINI_THINKING_LEVEL", ""));
-        TextPatternParser parser = new TextPatternParser(llm, mapper, model);
+        var tiers = LiveTiers.fromEnv(mapper);
+        TextPatternParser parser = new TextPatternParser(tiers, mapper);
         Path source = PRIVATE.resolve(expected.source());
         String mime = source.toString().endsWith(".pdf") ? "application/pdf" : "text/plain";
         Path out = PRIVATE.resolve("parsed").resolve(expected.name() + "." + parser.version().replace('/', '_')
@@ -56,7 +51,7 @@ class LivePrivateSourcesTest {
                     new SourceFile(source.getFileName().toString(), mime, Files.readAllBytes(source)),
                     SourceType.TEXT_PDF, new ParseOptions(null), TechniqueLibrary.builtin());
             Files.writeString(out, mapper.enable(SerializationFeature.INDENT_OUTPUT).writeValueAsString(parsed.ir()));
-            System.out.println(expected.name() + ": parsed in " + parsed.attempts() + " attempt(s) -> " + out);
+            System.out.println(expected.name() + ": parsed by " + parsed.model() + " in " + parsed.attempts() + " attempt(s) -> " + out);
             problems = expected.check(parsed.ir());
         } catch (ParseFailedException e) {
             if (e.lastOutput() != null) Files.writeString(out.resolveSibling(out.getFileName() + ".failed"), e.lastOutput());

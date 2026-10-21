@@ -10,6 +10,9 @@ import com.knittracker.ir.PatternIr;
 import com.knittracker.ir.PatternIr.SourceType;
 import com.knittracker.service.parse.PatternParser.ParseOptions;
 import com.knittracker.service.parse.PatternParser.SourceFile;
+import com.knittracker.service.llm.LlmTiers;
+import com.knittracker.service.llm.LlmClient.Attachment;
+import java.util.List;
 import com.knittracker.service.technique.TechniqueLibrary;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -99,6 +102,62 @@ class TextPatternParserTest {
         assertThatThrownBy(() -> parser(llm).parse(new SourceFile("x.zip", "application/zip", new byte[0]),
                 SourceType.TEXT_PDF, new ParseOptions(null), TechniqueLibrary.builtin())).isInstanceOf(IllegalArgumentException.class);
         assertThat(llm.calls).isEmpty();
+    }
+
+    // ---------- model chain: cheapest first, escalate only on failure ----------
+
+    TextPatternParser chain(FakeLlm cheap, FakeLlm strong) {
+        return new TextPatternParser(new LlmTiers(List.of(new LlmTiers.Tier("lite", cheap),
+                new LlmTiers.Tier("flash", strong))), mapper);
+    }
+
+    @Test
+    void cheapModelThatSucceedsIsTheOnlyOneCalled() {
+        FakeLlm cheap = new FakeLlm().reply(hatJson);
+        FakeLlm strong = new FakeLlm();
+        PatternParser.ParsedPattern p = chain(cheap, strong).parse(text, SourceType.TEXT_PDF, new ParseOptions(null), TechniqueLibrary.builtin());
+        assertThat(p.model()).isEqualTo("lite");
+        assertThat(strong.calls).isEmpty();
+    }
+
+    @Test
+    void escalatesAfterTheCheapModelUsesItsAttempts() {
+        FakeLlm cheap = new FakeLlm().reply("{bad", "{bad");
+        FakeLlm strong = new FakeLlm().reply(hatJson);
+        PatternParser.ParsedPattern p = chain(cheap, strong).parse(text, SourceType.TEXT_PDF, new ParseOptions(null), TechniqueLibrary.builtin());
+        assertThat(cheap.calls).hasSize(TextPatternParser.ATTEMPTS_PER_TIER);
+        assertThat(p.model()).isEqualTo("flash");
+        assertThat(strong.calls.getFirst().user()).doesNotContain("previous output was rejected");   // fresh start
+    }
+
+    @Test
+    void unavailableCheapModelHandsOverImmediately() {
+        FakeLlm cheap = new FakeLlm() {
+            @Override
+            public String completeJson(String s, String u, List<Attachment> a) {
+                calls.add(new Call(s, u, a));
+                throw new com.knittracker.service.llm.LlmException("Gemini HTTP 429");
+            }
+        };
+        FakeLlm strong = new FakeLlm().reply(hatJson);
+        PatternParser.ParsedPattern p = chain(cheap, strong).parse(text, SourceType.TEXT_PDF, new ParseOptions(null), TechniqueLibrary.builtin());
+        assertThat(cheap.calls).hasSize(1);
+        assertThat(p.model()).isEqualTo("flash");
+    }
+
+    @Test
+    void whenEveryModelFailsTheErrorsOfEachAreReported() {
+        FakeLlm cheap = new FakeLlm().reply("[]", "[]");
+        FakeLlm strong = new FakeLlm().reply("[]", "{\"irVersion\":1}");
+        assertThatThrownBy(() -> chain(cheap, strong).parse(text, SourceType.TEXT_PDF, new ParseOptions(null), TechniqueLibrary.builtin()))
+                .isInstanceOf(ParseFailedException.class)
+                .satisfies(e -> assertThat(((ParseFailedException) e).errors())
+                        .anyMatch(x -> x.startsWith("lite:")).anyMatch(x -> x.startsWith("flash:") && x.contains("title is required")));
+    }
+
+    @Test
+    void versionNamesTheWholeChainSoChangingItInvalidatesTheCache() {
+        assertThat(chain(new FakeLlm(), new FakeLlm()).version()).isEqualTo("text-v3/lite+flash");
     }
 
     static String read(String name) {

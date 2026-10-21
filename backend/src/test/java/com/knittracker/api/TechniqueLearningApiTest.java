@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.knittracker.security.UserScope;
+import com.knittracker.service.llm.LlmTiers;
 import com.knittracker.service.parse.FakeLlm;
 import java.util.List;
 import java.util.UUID;
@@ -30,6 +31,12 @@ class TechniqueLearningApiTest extends ApiTestBase {
         @Primary
         FakeLlm fakeLlm() {
             return new FakeLlm();
+        }
+
+        @Bean
+        @Primary
+        LlmTiers fakeTiers(FakeLlm fake) {
+            return LlmTiers.single("fake", fake);
         }
     }
 

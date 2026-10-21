@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.knittracker.ir.Fixtures;
+import com.knittracker.service.llm.LlmTiers;
 import com.knittracker.service.parse.FakeLlm;
 import java.nio.file.Files;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +26,12 @@ class PatternUploadApiTest extends ApiTestBase {
         @Primary
         FakeLlm fakeLlm() {
             return new FakeLlm();
+        }
+
+        @Bean
+        @Primary
+        LlmTiers fakeTiers(FakeLlm fake) {
+            return LlmTiers.single("fake", fake);
         }
     }
 
