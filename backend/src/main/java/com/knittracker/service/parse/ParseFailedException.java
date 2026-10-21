@@ -6,10 +6,21 @@ import java.util.List;
 public class ParseFailedException extends RuntimeException {
 
     private final List<String> errors;
+    private final String lastOutput;
 
-    public ParseFailedException(List<String> errors) {
+    /** @param lastOutput the model's last raw answer, for offline diagnosis only: never log or return it */
+    public ParseFailedException(List<String> errors, String lastOutput) {
         super("Pattern could not be parsed: " + String.join("; ", errors));
         this.errors = List.copyOf(errors);
+        this.lastOutput = lastOutput;
+    }
+
+    public ParseFailedException(List<String> errors) {
+        this(errors, null);
+    }
+
+    public String lastOutput() {
+        return lastOutput;
     }
 
     public List<String> errors() {

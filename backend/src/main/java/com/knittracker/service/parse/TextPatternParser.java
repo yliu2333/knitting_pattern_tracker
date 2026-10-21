@@ -41,7 +41,7 @@ public class TextPatternParser implements PatternParser {
         this.llm = llm;
         this.strict = mapper.copy().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);
         this.systemPrompt = resource("llm/parse-system.md") + "\n\n" + resource("llm/glossary.md");
-        this.version = "text-v1/" + model;
+        this.version = "text-v2/" + model;
     }
 
     @Override
@@ -74,7 +74,7 @@ public class TextPatternParser implements PatternParser {
             try {
                 raw = llm.completeJson(systemPrompt, prompt, attachments);
             } catch (LlmException e) {
-                throw new ParseFailedException(List.of(e.getMessage()));
+                throw new ParseFailedException(List.of(e.getMessage()), previous);
             }
             previous = raw;
             PatternIr ir;
@@ -94,7 +94,7 @@ public class TextPatternParser implements PatternParser {
                 }
             }
         }
-        throw new ParseFailedException(errors);
+        throw new ParseFailedException(errors, previous);
     }
 
     static String userPrompt(SourceType type, ParseOptions options, String patternText, String previous,

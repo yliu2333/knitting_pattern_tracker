@@ -34,7 +34,13 @@ source (any lang) --[LLM parse]--> Canonical IR (language-neutral) --[determinis
 ## Fixtures & copyright (this repo is public)
 - Purchased patterns (泡芙 Tee IR, prototype HTML) live ONLY in the private repo `yliu2333/knitting-private-fixtures`, cloned or symlinked to `fixtures/private/` (git-ignored). Never commit pattern content here, not even temporarily: git history is permanent.
 - Tests discover `fixtures/*.ir.json` + `fixtures/private/patterns/*.ir.json`; private ones are skipped when absent.
-- IR simulation semantics: a row/round starting at BOR slips it implicitly; `K until END` crossing markers is split into literal pieces (`k28, sm, k9…`); inside `REPEAT until END` markers are slipped silently; `PICKUP_HELD` / `RESUME_MAIN` switch the active piece.
+- `expected/<name>.expected.json` (private): stitch counts the pattern itself states, in order. Both the hand-written IR (`ExpectedCountsTest`) and Gemini's parse (`LivePrivateSourcesTest`, saves raw output to private `parsed/`) must hit them as a subsequence of step end counts.
+- IR simulation semantics (StitchSimulator):
+  - a row/round starting at BOR slips it implicitly; `K until END` crossing markers is split into literal pieces (`k28, sm, k9…`); inside `REPEAT until END` markers are slipped silently
+  - `until END` = BOR on a joined round, the edge on a flat piece; `stopBefore` works with MARKER/BOR/END and on `REPEAT until …`
+  - a CHECKPOINT on a joined round is worked as a round; a ROUND step on an unjoined piece joins it
+  - pieces: `HOLD` (count/until, `attrs.piece` name; markers in the span are dropped) keeps the round joined unless the next action is `TURN`, which opens the round there (flat piece, edge markers dropped); flat ROW steps turn at the edge implicitly; `PUT_ASIDE` sets the whole piece aside; `PICKUP_HELD` makes a held piece the working piece; `JOIN_PIECE` puts held sts on the left needle mid-row; `RESUME_MAIN` returns to the body; `PM BOR` moves an existing BOR
+  - `PICKUP_EDGE`, `CO_*` add sts; `BO*` empties the needle (markers too)
 
 ## Backend layering (same as video-platform: api / service / dao)
 ```
@@ -129,7 +135,8 @@ Root cause of that class of bug: isolation relied on every query *remembering* t
 5. Sign in with Apple + JWT — ✅ backend; iOS side comes with milestone 4
 6. TextPatternParser: LLM prompt + glossary + JSON schema validation + retry; test on real EN/JP/CN patterns
    - ✅ pipeline: `resources/llm/parse-system.md` + `glossary.md` → Gemini (JSON mode, SSE streaming, key in header) → strict Jackson → IrNormalizer (Java does REPEAT totals, inch→cm) → IrValidator → StitchSimulator; errors fed back, max 3 attempts. Parser version `text-v1/<model>` is part of the cache key: bump it when the prompt changes.
-   - ⏳ live quality check: `GEMINI_LIVE=1 ./gradlew test --tests '*LiveGeminiParseTest'`; real patterns go in the private repo `sources/`
+   - ⏳ live quality check: `GEMINI_LIVE=1 GEMINI_THINKING_LEVEL=low ./gradlew test --tests '*Live*'`; real patterns go in the private repo `sources/` with an `expected/` file
+   - Sheer na Knit (JA) first live run: 3/3 attempts failed on IR gaps (armhole split/rejoin, edge pick-up, "to N before BOR"). Fixed in simulator + prompt (`text-v2`); hand-written IR now reaches all stated counts. Next: re-run live.
 7. GaugeAdapter: rescale counts with constraints (ribbing parity, repeat multiples, even decrease spacing, short-row depth by row gauge)
 8. Later: JP knit symbol charts → crochet charts
 

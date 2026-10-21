@@ -36,14 +36,22 @@ PDS — purl the double stitch as one | ダブルステッチを1目として裏
 ## Cast on / bind off / finishing
 CO_LONGTAIL — long-tail cast on | 指でかける作り目 | 长尾起针, 手指起针
 CO — cast on (method unspecified) | 作り目 | 起针
+CO_PROVISIONAL — provisional cast on, crochet chain cast on | 別鎖の作り目 | 别线锁针起针, 另线起针
+CO_CABLE — cable cast on (also mid-row: "cast on 4 sts" at underarms) | ケーブルキャストオン, 作り目○目(マチ) | 起针(cable)
 FOLD_JOIN — fold hem and knit each st together with its cast-on loop | 裾を折り返して作り目と2目一度 | 双层领对折合并
 BO — bo, bind off, cast off | 伏せ止め | 收针, 平收
 BO_TUBULAR — tubular bind off | 1目ゴム編み止め(とじ針) | 管状收针, 单罗纹收针
+BO_ELASTIC — stretchy / elastic bind off | エラスティックバインドオフ, 伸縮性のある伏せ止め | 弹性收针
 CUT_DRAW_THROUGH — cut yarn, draw through remaining sts | 糸を切り残りの目に通して絞る | 剪线穿过剩余针目收紧
-HOLD — place on hold / waste yarn / scrap yarn | 休み目にする(別糸に移す) | 废线留针, 针目休针
+HOLD — place on hold / waste yarn / scrap yarn | 休み目にする(別糸に移す), ホルダーに休める | 废线留针, 针目休针
+PUT_ASIDE — cut yarn and put the whole working piece on hold | 糸を切り、今編んだ目を休めておく | 剪线，整片休针
+JOIN_PIECE — put held sts back on the left needle in the middle of a row/round | 休み目を左針に乗せる | 休针移回左针
+PICKUP_EDGE — pick up (and knit) sts along an edge | 拾い目, 〜から○目拾う | 挑针
 PICKUP_HELD — return held sts to needle | 休み目を針に戻す | 废线针目上针
 RESUME_MAIN — return to body sts after working pieces | 身頃に戻る | 回到身体针目
 VERIFY_COUNT — "you now have N sts" check (count left out: Java checks) | 目数を確認 | 核对针数
+SL — slip st(s) (no yarn position stated) | すべり目 | 滑针
+CROCHET_EDGE — crochet slip stitch along a seam/edge to stop stretching | かぎ針で引き抜き編みして伸びどめ | 钩针引拔防拉伸
 TRY_ON — try on | 試着 | 试穿
 WEAVE_ENDS — weave in ends | 糸始末 | 收线头
 BLOCK — block, wet block | スチーム/水通し | 定型, 浸泡定型

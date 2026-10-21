@@ -44,7 +44,7 @@ type Segment = {
   until?: "MARKER" | "BOR" | "GAP" | "END";
   stopBefore?: number;             // "knit to 2 sts before marker" → until MARKER, stopBefore 2
   marker?: string;                 // name for PM/SM/RM when the pattern names markers (use "BOR" for beginning of round)
-  attrs?: { tag?: "SADDLE" };      // optional hints
+  attrs?: { tag?: "SADDLE"; piece?: string }; // piece: name of a held piece (HOLD / PUT_ASIDE / PICKUP_HELD / JOIN_PIECE)
   raw?: string;                    // required for UNKNOWN
   children?: Segment[];            // REPEAT only
 };
@@ -63,8 +63,30 @@ type Segment = {
 - "k to 3 sts before marker, k2tog, k1, sm" → K until MARKER stopBefore 3, K2TOG, K count 1, SM
 - Short rows: "turn" → TURN. German short rows: "DS" → DS; working the double stitch → KDS / PDS; "knit to DS/gap" → until GAP.
 - Rounds begin at BOR implicitly; do not add SM at the start of a round.
+- A single special round (e.g. joining a folded neckband: each st knit together with its cast-on loop) is
+  `ROWS`, unit `ROUND`, total 1 — not a CHECKPOINT: `{code:"REPEAT", until:"END", children:[{code:"FOLD_JOIN"}]}`.
+- "k1, ssk, k to 3 sts before BOR, k2tog, k1" → K 1, SSK, K until BOR stopBefore 3, K2TOG, K 1.
+  "(k2tog) to 1 st before BOR, k1" → REPEAT until BOR stopBefore 1 [K2TOG], K 1.
 - Cast on in the round: CO_LONGTAIL (or CO) with count, then PM marker "BOR", then JOIN_ROUND.
-- Sleeves on hold: "place 60 sleeve sts on waste yarn" → HOLD count 60 (or until MARKER). Later "return sleeve sts to needle" → PICKUP_HELD. When the pattern goes back to the body after the sleeves → RESUME_MAIN.
+- Sleeves on hold while the body continues in the round: "place 60 sleeve sts on waste yarn" → HOLD count 60
+  (or until MARKER). Later "return sleeve sts to needle" → PICKUP_HELD. Back to the body after the sleeves → RESUME_MAIN.
+- Pieces worked flat (armholes made by working back and front separately). Give every held piece a name in
+  `attrs.piece` and use the same name when it comes back:
+  - "k to m, place next 138 sts (front) on holder, turn" → K until MARKER, HOLD count 138 piece "FRONT", TURN.
+    A TURN right after a HOLD opens the round: the rest is now flat. Markers inside the held span are removed.
+  - Flat rows: step unit `ROW`; each row is "K until END" or "P until END". Do NOT write TURN at the end of
+    ordinary flat rows (turning at the edge is implicit); write TURN only for short rows or right after a HOLD.
+  - "cut yarn, put the back sts on hold" → PUT_ASIDE piece "BACK".
+  - "put the held front sts on the needle" → PICKUP_HELD piece "FRONT".
+  - "slip the first st to a holder … knit to the last st, hold it" → HOLD count 1 piece "SHOULDER_1",
+    K until END stopBefore 1, HOLD count 1 piece "SHOULDER_2", TURN.
+  - Rejoin to work in the round: "knit front, cast on 4, knit back, cast on 4, pm BOR" → K until END,
+    CO_CABLE 4, JOIN_PIECE piece "BACK", K until END, CO_CABLE 4, PM marker "BOR", JOIN_ROUND.
+- Picking up stitches along edges ("pick up 3 sts from the underarm cast-on, 30 along the front…") →
+  one PICKUP_EDGE per stated count. A held stitch knit in between ("knit the held shoulder st") →
+  JOIN_PIECE piece "SHOULDER_1", K 1. Then PM marker "BOR"; the following ROUND step joins it.
+- "Work the second sleeve the same way (mirrored)" → write the sleeve section again as its own section,
+  using the other held pieces (e.g. SHOULDER_2).
 - Measurements: "work until piece measures 15 cm from cast-on" → omit total, target {lengthCm:15, from:"CAST_ON"}.
   Inches: if the pattern also gives cm, copy the cm value; otherwise copy inches as {lengthIn: 6} (Java converts).
 - Charts you cannot read row by row: one step with a single segment {code:"UNKNOWN", raw:"<chart name + what it says>"}.
