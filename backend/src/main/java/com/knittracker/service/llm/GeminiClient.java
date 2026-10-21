@@ -65,14 +65,21 @@ public class GeminiClient implements LlmClient {
                 throw new LlmException("Gemini HTTP " + res.statusCode());
             }
             // One "data: {chunk}" line per event; the answer is the concatenated non-thought text parts.
+            // Under load Gemini can answer 200, stream part of the answer, then send an error event:
+            // a partial answer is an error, not a (truncated) result.
             StringBuilder text = new StringBuilder();
+            String finish = null;
             for (String line : res.body().split("\\R")) {
                 if (!line.startsWith("data:")) continue;
-                JsonNode chunkParts = mapper.readTree(line.substring(5)).path("candidates").path(0).path("content").path("parts");
-                chunkParts.forEach(p -> {
+                JsonNode chunk = mapper.readTree(line.substring(5));
+                if (chunk.has("error")) throw new LlmException("Gemini HTTP " + chunk.path("error").path("code").asInt());
+                JsonNode candidate = chunk.path("candidates").path(0);
+                candidate.path("content").path("parts").forEach(p -> {
                     if (!p.path("thought").asBoolean(false)) text.append(p.path("text").asText(""));
                 });
+                if (candidate.hasNonNull("finishReason")) finish = candidate.get("finishReason").asText();
             }
+            if (!"STOP".equals(finish)) throw new LlmException("Gemini stream ended early: " + finish);
             if (text.isEmpty()) throw new LlmException("Gemini returned no text");
             return text.toString();
         } catch (IOException e) {

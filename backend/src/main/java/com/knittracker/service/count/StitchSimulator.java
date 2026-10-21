@@ -74,6 +74,8 @@ public final class StitchSimulator {
         int silentSlip;
         /** The previous action put part of a joined round on hold, leaving a gap at the cursor. */
         boolean holdGap;
+        /** The current round started on an unjoined piece without BOR; join it when the round is done. */
+        boolean joinAfterRow;
         boolean gapBeforeTurn;
         boolean switchedPiece;
 
@@ -110,6 +112,10 @@ public final class StitchSimulator {
                 else if (st.kind() != StepIr.Kind.CHECKPOINT) startRow(row);
                 List<Integer> sections = sectionsFromBor();
                 List<ResolvedSegment> segs = run(row.segments());
+                if (joinAfterRow) {
+                    if (!active.joined) join();
+                    joinAfterRow = false;
+                }
                 rounds.add(new RoundPlan(ord, segs, active.stitches(), sections));
             }
             int end = active.stitches();
@@ -125,10 +131,22 @@ public final class StitchSimulator {
         }
 
         void startRound() {
-            if (active.dir != 1) throw fail("round started while working backward (missing TURN?)");
-            // Knitting in the round joins a piece that was picked up or cast on flat.
-            if (!active.joined) join();
+            if (active.dir != 1) {
+                // A flat piece that ended on a WS row is turned to the RS to start knitting in the round.
+                if (!active.joined && nextIndex() < 0) active.dir = 1;
+                else throw fail("round started while working backward (missing TURN?)");
+            }
+            if (!active.joined) {
+                // Knitting in the round joins a picked-up / cast-on piece. Without a BOR yet, this round builds
+                // the ring (e.g. front + underarm cast-on + back + cast-on + pm BOR): join once it is worked.
+                if (hasBor()) join();
+                else joinAfterRow = true;
+            }
             passBor();
+        }
+
+        boolean hasBor() {
+            return active.ring.stream().anyMatch(t -> t instanceof Marker m && m.name().equals(BOR));
         }
 
         /** Flat rows turn at the edge; a row that begins at BOR slips it (unless it says SM itself). */

@@ -70,6 +70,20 @@ class StitchSimulatorPiecesTest {
         assertThat(row).extracting(ResolvedSegment::count).containsExactly(1, 1, 8, 1, 1);
     }
 
+    /** As the LLM wrote it for Sheer na Knit: front ends on a WS row, then the rejoin is itself a ROUND step. */
+    @Test
+    void rejoinWrittenAsARoundAfterAWrongSideRowWorks() throws Exception {
+        String asRound = IR.replace(
+                "{\"kind\":\"ROWS\",\"unit\":\"ROW\",\"titleSrc\":\"rejoin\",\"total\":1,\"rows\":[{\"segments\":[{\"code\":\"P\",\"until\":\"END\"},{\"code\":\"TURN\"}]}]},",
+                "{\"kind\":\"ROWS\",\"unit\":\"ROW\",\"titleSrc\":\"ws\",\"total\":1,\"rows\":[{\"segments\":[{\"code\":\"P\",\"until\":\"END\"}]}]},")
+                .replace("\"unit\":\"ROW\",\"titleSrc\":\"rejoin 2\"", "\"unit\":\"ROUND\",\"titleSrc\":\"rejoin 2\"")
+                .replace(",{\"code\":\"PM\",\"marker\":\"BOR\"},{\"code\":\"JOIN_ROUND\"}]}]},", ",{\"code\":\"PM\",\"marker\":\"BOR\"}]}]},");
+        assertThat(asRound).isNotEqualTo(IR);
+        List<StepPlan> s = StitchSimulator.simulate(Fixtures.MAPPER.readValue(asRound, PatternIr.class)).steps();
+        assertThat(s.get(9).endSts()).isEqualTo(22);
+        assertThat(s.get(10).rounds().getFirst().sectionsAtStart()).containsExactly(22);
+    }
+
     static PatternIr read() {
         try {
             return Fixtures.MAPPER.readValue(IR, PatternIr.class);
